@@ -55,12 +55,18 @@ type AuthParams struct {
 	Password  string
 }
 
+type SentMessagesItem struct {
+	MessageId    int
+	AssignmentId int
+}
+
 type ClientApi struct {
-	BaseUrl    string
-	AuthParams *AuthParams
-	HTTPClient *http.Client
-	At         string
-	Ver        int
+	BaseUrl      string
+	AuthParams   *AuthParams
+	HTTPClient   *http.Client
+	At           string
+	Ver          int
+	SentMessages []SentMessagesItem
 }
 
 type LoginData struct {
@@ -408,14 +414,45 @@ func (c *ClientApi) botSentDoc(bot *tgbotapi.BotAPI, chatId int64, docs *map[str
 	}
 }
 
-func (c *ClientApi) botSentNotify(bot *tgbotapi.BotAPI, chatId int64, text string, docs *map[string]string) {
-	msg := tgbotapi.NewMessage(chatId, text)
-	msg.ParseMode = "markdown"
-	msg.DisableWebPagePreview = true
-	if _, err := bot.Send(msg); err != nil {
+func (c *ClientApi) botNewMessage(chatId int64, sentMsgId int, text string) tgbotapi.Chattable {
+	if sentMsgId > 0 {
+		msg := tgbotapi.NewEditMessageText(chatId, sentMsgId, text)
+		msg.ParseMode = "markdown"
+		msg.DisableWebPagePreview = true
+		return msg
+	} else {
+		msg := tgbotapi.NewMessage(chatId, text)
+		msg.ParseMode = "markdown"
+		msg.DisableWebPagePreview = true
+		return msg
+	}
+}
+
+func (c *ClientApi) botSentNotify(bot *tgbotapi.BotAPI, chatId int64, sentMsgId int, text string, docs *map[string]string) int {
+	msg := c.botNewMessage(chatId, sentMsgId, text)
+	message, err := bot.Send(msg)
+	if err != nil {
 		log.Error(err)
 	}
 	c.botSentDoc(bot, chatId, docs)
+	return message.MessageID
+}
+
+func (c *ClientApi) GetSentMessageId(assignmentId int) int {
+	for _, sentMsg := range c.SentMessages {
+		if sentMsg.AssignmentId == assignmentId {
+			return sentMsg.MessageId
+		}
+	}
+	return 0
+}
+
+func (c *ClientApi) AddSentMessageId(msgId int, assignmentId int) {
+	if len(c.SentMessages) > 2 {
+		c.SentMessages = c.SentMessages[len(c.SentMessages)-2:]
+	}
+	c.SentMessages = append(c.SentMessages, SentMessagesItem{msgId, assignmentId})
+
 }
 
 func (c *ClientApi) GetAssignments(studentId int, weekStart string, weekEnd string, withLaAssigns bool, withPastMandatory bool, yearId int) (*Diary, error) {
@@ -483,10 +520,6 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 		return
 	}
 	isFirstRun := true
-	/*isFirstAttSend := map[int]bool {
-		76474: false,
-		76468: false,
-	}*/
 	for {
 		for _, studentId := range studentIds {
 			currentTime := time.Now()
@@ -509,27 +542,30 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 						continue
 					}
 					for _, assignment := range lesson.Assignments {
-						if assignment.AssignmentName != "" {
-							assignmentDetailSaved, found := (*assignments)[assignment.Id]
-							assignmentDetail, err := c.GetAssignmentDetail(assignment.Id, studentId)
-							if err != nil {
-								log.Error(err)
-								continue
-							}
-							if found && reflect.DeepEqual(assignmentDetailSaved, *assignmentDetail) {
-								continue
-							}
-							(*assignments)[assignment.Id] = *assignmentDetail
-							if !isFirstRun {
-								c.botSentNotify(bot, chatId, lesson.DayString()+assignmentDetail.String(c), assignmentDetail.GetAttachmentsUrls(c))
-							}
-							/*
-								if !isFirstAttSend[studentId] && len(assignmentDetail.Attachments) > 0 {
-									c.botSentNotify(bot, chatId, lesson.DayString() + assignmentDetail.String(c), assignmentDetail.GetAttachmentsUrls(c))
-									isFirstAttSend[studentId] = true
-								}
-							*/
+						if assignment.AssignmentName == "" {
+							continue
 						}
+						assignmentDetailSaved, found := (*assignments)[assignment.Id]
+						assignmentDetail, err := c.GetAssignmentDetail(assignment.Id, studentId)
+						if err != nil {
+							log.Error(err)
+							continue
+						}
+						if found && reflect.DeepEqual(assignmentDetailSaved, *assignmentDetail) {
+							continue
+						}
+						(*assignments)[assignment.Id] = *assignmentDetail
+						if isFirstRun {
+							continue
+						}
+						msgId := c.botSentNotify(
+							bot,
+							chatId,
+							c.GetSentMessageId(assignment.Id),
+							lesson.DayString()+assignmentDetail.String(c),
+							assignmentDetail.GetAttachmentsUrls(c),
+						)
+						c.AddSentMessageId(msgId, assignment.Id)
 					}
 				}
 			}
