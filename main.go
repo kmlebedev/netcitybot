@@ -10,8 +10,10 @@ import (
 )
 
 const (
-	EnvKeyTgbotToken  = "BOT_API_TOKEN"
-	EnvKeyTgbotChatId = "BOT_CHAT_ID" // -1001402812566
+	EnvKeyTgbotToken      = "BOT_API_TOKEN"
+	EnvKeyTgbotChatId     = "BOT_CHAT_ID" // -1001402812566
+	EnvKeyNetCityUsername = "NETCITY_USERNAME"
+	EnvKeyNetCityPassword = "NETCITY_PASSWORD"
 )
 
 func main() {
@@ -19,6 +21,7 @@ func main() {
 	if token == "" {
 		log.Fatal(fmt.Errorf("bot api token not found in env key: %s", EnvKeyTgbotToken))
 	}
+
 	chatId, err := strconv.ParseInt(os.Getenv(EnvKeyTgbotChatId), 10, 64)
 	if err != nil {
 		log.Fatal(fmt.Errorf("bot chat id error in env key %s: %s", EnvKeyTgbotChatId, err))
@@ -37,13 +40,13 @@ func main() {
 		Cn:        3,
 		Sft:       2,
 		Sid:       66,
-		Username:  "ЛебедевКК",
-		Password:  "qotawf",
+		Username:  os.Getenv(EnvKeyNetCityUsername),
+		Password:  os.Getenv(EnvKeyNetCityPassword),
 	}
 
 	api := netcity.NewClientApi("https://netcity.eimc.ru", &p)
 	assignments := map[int]netcity.DiaryAssignmentDetail{}
-	go api.LoopPullingOrder(60, bot, chatId, &assignments)
+	go api.LoopPullingOrder(60, bot, chatId, &assignments, []int{76474, 76468})
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 

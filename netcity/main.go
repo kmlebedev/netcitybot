@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	"github.com/goodsign/monday"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
@@ -16,10 +17,26 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
+
+type DateTime struct {
+	time.Time
+}
+
+func (c *DateTime) UnmarshalJSON(b []byte) (err error) {
+	layout := "2006-01-02T15:04:05"
+
+	s := strings.Trim(string(b), "\"") // remove quotes
+	if s == "null" {
+		return
+	}
+	c.Time, err = time.Parse(layout, s)
+	return
+}
 
 type AuthParams struct {
 	LoginType int
@@ -43,10 +60,17 @@ type ClientApi struct {
 	AuthParams *AuthParams
 	HTTPClient *http.Client
 	At         string
+	Ver        int
 }
 
 type LoginData struct {
-	At string `josn:"at"`
+	At          string `josn:"at"`
+	entryPoint  string `josn:"entryPoint"`
+	RequestData struct {
+		WarnType string `josn:"warnType"`
+		Atlist   string `josn:"atlist"` // 0001254637424692725228032313\u0001805637424696623130979401
+	} `josn:"requestData"`
+	// errorMessage
 }
 
 type errorResponse struct {
@@ -83,7 +107,7 @@ type DiaryAssignment struct {
 	TypeId         int          `json:"typeId"`
 	AssignmentName string       `json:"assignmentName"` // тест ja/nein/doch
 	Weight         int          `json:"weight"`
-	DueDate        string       `json:"dueDate"` // 2020-11-26T00:00:00
+	DueDate        DateTime     `json:"dueDate"` // 2020-11-26T00:00:00
 	ClassMeetingId int          `json:"classMeetingId"`
 	ExistsTestPlan bool         `json:"existsTestPlan"`
 }
@@ -99,10 +123,10 @@ type DiaryAssignmentDetail struct {
 		Id   int    `json:"id"`
 		Name string `json:"name"`
 	} `json:"teacher"`
-	AssignmentName string `json:"assignmentName"` // тест ja/nein/doch
-	IsDeleted      bool   `json:"isDeleted"`
-	Date           string `json:"date"`
-	Description    string `json:"description"` // "Решить работу в \"Я  Классе\".\r\nП.11  выучить правила,  решить в тетради № 354(2,4), 356(4), 358(3,4), 366.",
+	AssignmentName string   `json:"assignmentName"` // тест ja/nein/doch
+	IsDeleted      bool     `json:"isDeleted"`
+	Date           DateTime `json:"date"`
+	Description    string   `json:"description"` // "Решить работу в \"Я  Классе\".\r\nП.11  выучить правила,  решить в тетради № 354(2,4), 356(4), 358(3,4), 366.",
 	//"activityName": null,
 	//"problemName": null,
 	//"productId": null
@@ -110,9 +134,16 @@ type DiaryAssignmentDetail struct {
 	//"codeContentElements": null
 }
 
-type DiaryLessons struct {
+func (l *DiaryLesson) DayString() string {
+	return fmt.Sprintf("%sг. Урок %d %s - %s\n",
+		monday.Format(l.Day.Time, "Monday, 2 January 2006", monday.LocaleRuRU),
+		l.Number, l.StartTime, l.EndTime,
+	)
+}
+
+type DiaryLesson struct {
 	ClassmeetingId int               `json:"classmeetingId"`
-	Day            string            `json:"day"` // "2020-11-30T00:00:00"
+	Day            DateTime          `json:"day"` // "2020-11-30T00:00:00"
 	Number         int               `json:"number"`
 	Room           string            `json:"room"`
 	StartTime      string            `json:"startTime"`
@@ -122,13 +153,34 @@ type DiaryLessons struct {
 }
 
 type DiaryWeekDays struct {
-	Date    string         `json:"date"`
-	Lessons []DiaryLessons `json:"lessons"`
+	Date    DateTime      `json:"date"`
+	Lessons []DiaryLesson `json:"lessons"`
 }
 
 type DiaryPastMandatory struct {
 	DiaryAssignment
 	SubjectName string `json:"subjectName"` // Немецкий язык
+}
+
+type DiaryInit struct {
+	Students []struct {
+		StudentId int    `json:"studentId"`
+		NickName  string `json:"nickName"`
+		//className int `json:"className"`
+		ClassId  int `json:"classId"`
+		IupGrade int `json:"iupGrade"`
+	}
+	CurrentStudentId  int      `json:"currentStudentId"`
+	WeekStart         DateTime `json:"weekStart"`
+	YaClass           bool     `json:"yaClass"`
+	YaClassAuthUrl    string   `json:"yaClassAuthUrl"`
+	NewDiskToken      string   `json:"newDiskToken"`
+	NewDiskWasRequest bool     `json:"newDiskWasRequest"`
+	TtsuRl            string   `json:"ttsuRl"`
+	ExternalUrl       string   `json:"externalUrl"`
+	Weight            bool     `json:"weight"`
+	MaxMark           int      `json:"maxMark"`
+	WithLaAssigns     bool     `json:"withLaAssigns"`
 }
 
 type Diary struct {
@@ -170,8 +222,7 @@ func (a *AuthParams) GetUrlValues(authData *AuthData) url.Values {
 
 // https://netcity.eimc.ru/doc/%D1%81%D1%81%D1%8B%D0%BB%D0%BA%D0%B0%206%D0%93.docx?at=122637423789174617893268&VER=1606765770504&attachmentId=772789
 func (c *ClientApi) GetAttachmentUrl(a *Attachment) string {
-	return "https://netcity.eimc.ru/doc/%D0%BC%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%B0%D0%BB%20%D0%B4%D0%BB%D1%8F%20%D1%81%D0%BE%D1%87%D0%B8%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F.docx?at=6176374238977546383152&attachmentId=750687"
-	//return fmt.Sprintf("%s/doc/%s?at=%s&attachmentId=%d", c.BaseUrl,  url.PathEscape(a.OriginalFileName), c.At,a.Id)
+	return fmt.Sprintf("%s/doc/%s?at=%s&attachmentId=%d", c.BaseUrl, url.PathEscape(a.OriginalFileName), c.At, a.Id)
 }
 
 func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
@@ -189,7 +240,6 @@ func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
 		return err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode == http.StatusUnauthorized {
 		c.DoAuth()
 	} else if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
@@ -207,6 +257,43 @@ func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
 		log.Println(string(bytes))
 		return err
 	}
+	return nil
+}
+
+//curl 'https://netcity.eimc.ru/asp/Announce/ViewAnnouncements.asp' \
+//  -H 'Content-Type: application/x-www-form-urlencoded' \
+//  --data-raw 'at=37763742510589491998710' \
+func (c *ClientApi) DoViewAnnouncements() error {
+	// _, _ = c.HTTPClient.Get(fmt.Sprintf("%s/asp/jumptologin.asp?jmp=/?AL=Y", c.BaseUrl))
+	req, err := http.NewRequest("POST",
+		fmt.Sprintf("%s/asp/Announce/ViewAnnouncements.asp", c.BaseUrl),
+		strings.NewReader(url.Values{"at": {c.At}}.Encode()))
+	req.Header.Set("Referer", c.BaseUrl+"/?AL=Y")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("DoViewAnnouncements not status ok : %s", resp)
+	}
+	// parse var pageVer = 1606918125;
+	re := regexp.MustCompile(`var pageVer = (\d+);`)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	match := re.FindSubmatch(body)
+	if len(match) < 2 {
+		log.Error(string(body))
+		return fmt.Errorf("pageVer not found")
+	}
+	c.Ver, err = strconv.Atoi(string(match[1]))
 	return nil
 }
 
@@ -236,6 +323,20 @@ func (c *ClientApi) DoAuth() error {
 		return fmt.Errorf("empty login data %s", loginData)
 	}
 	c.At = loginData.At
+	err = c.DoViewAnnouncements()
+	if err != nil {
+		return err
+	}
+	diaryInit := DiaryInit{}
+	req, err = http.NewRequest("GET",
+		fmt.Sprintf("%s/webapi/student/diary/init", c.BaseUrl), nil,
+	)
+	if err != nil {
+		return err
+	}
+	if err := c.sendRequest(req, &diaryInit); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -253,7 +354,6 @@ func NewClientApi(baseUrl string, authParams *AuthParams) *ClientApi {
 	if err := c.DoAuth(); err != nil {
 		log.Fatal(err)
 	}
-
 	return c
 }
 
@@ -272,31 +372,50 @@ func (c *ClientApi) GetAssignmentDetail(id int, studentId int) (*DiaryAssignment
 	return &resp, nil
 }
 
-func botSentNotify(bot *tgbotapi.BotAPI, chatId int64, text string, docs *map[string]string) {
+func (c *ClientApi) botSentDoc(bot *tgbotapi.BotAPI, chatId int64, docs *map[string]string) {
+	if docs == nil || len(*docs) == 0 {
+		return
+	}
+	for k, v := range *docs {
+		req, _ := http.NewRequest("GET", fmt.Sprintf("%s&VER=%d", v, c.Ver), nil)
+		c.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		req.Header.Set("Referer", c.BaseUrl+"/")
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			log.Error(err)
+		}
+		c.HTTPClient.CheckRedirect = nil
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			log.Error(resp.Request)
+			return
+		}
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		file := tgbotapi.FileBytes{
+			Name:  k,
+			Bytes: body,
+		}
+		_, err = bot.Send(tgbotapi.NewDocumentUpload(chatId, file))
+		if err != nil {
+			log.Error(err)
+		}
+	}
+}
+
+func (c *ClientApi) botSentNotify(bot *tgbotapi.BotAPI, chatId int64, text string, docs *map[string]string) {
 	msg := tgbotapi.NewMessage(chatId, text)
 	msg.ParseMode = "markdown"
 	msg.DisableWebPagePreview = true
 	if _, err := bot.Send(msg); err != nil {
 		log.Error(err)
 	}
-	if docs != nil && len(*docs) > 0 {
-		for k, v := range *docs {
-			resp, err := http.Get(v)
-			if err != nil {
-				log.Error(err)
-			}
-			defer resp.Body.Close()
-			body, _ := ioutil.ReadAll(resp.Body)
-			file := tgbotapi.FileBytes{
-				Name:  k,
-				Bytes: body,
-			}
-			if _, err := bot.Send(tgbotapi.NewDocumentUpload(chatId, file)); err != nil {
-				log.Error(err)
-			}
-		}
-
-	}
+	c.botSentDoc(bot, chatId, docs)
 }
 
 func (c *ClientApi) GetAssignments(studentId int, weekStart string, weekEnd string, withLaAssigns bool, withPastMandatory bool, yearId int) (*Diary, error) {
@@ -344,7 +463,7 @@ func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 	names := strings.Split(a.SubjectGroup.Name, "/")
 	subjectName := a.SubjectGroup.Name
 	if len(names) > 1 {
-		subjectName = names[1]
+		subjectName = strings.Join(names[1:], "/")
 	}
 	return fmt.Sprintf(
 		"*Предмет*: %s\n"+
@@ -353,57 +472,69 @@ func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 			"%s",
 		subjectName,
 		a.Teacher.Name,
-		a.Date[:len("2006-01-02")], assignmentName,
+		a.Date.Format("2006-01-02"),
+		//a.Date[:len("2006-01-02")],
+		assignmentName,
 		description)
 }
 
-func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, assignments *map[int]DiaryAssignmentDetail) {
+func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, assignments *map[int]DiaryAssignmentDetail, studentIds []int) {
 	if intervalSeconds == 0 {
 		return
 	}
 	isFirstRun := true
-	studentId := 76474
+	/*isFirstAttSend := map[int]bool {
+		76474: false,
+		76468: false,
+	}*/
 	for {
-		currentTime := time.Now()
-		weekStrat := currentTime.AddDate(0, 0, -8)
-		weekEnd := currentTime.AddDate(0, 0, 8)
-		newAssignments, err := c.GetAssignments(
-			studentId,
-			weekStrat.Format("2006-01-02"),
-			weekEnd.Format("2006-01-02"),
-			false,
-			false,
-			192,
-		)
-		if err != nil {
-			log.Fatal(err)
-		}
-		for _, weekday := range newAssignments.WeekDays {
-			for _, lesson := range weekday.Lessons {
-				if lesson.Assignments == nil {
-					continue
-				}
-				for _, assignment := range lesson.Assignments {
-					if assignment.AssignmentName != "" {
-						assignmentDetailSaved, found := (*assignments)[assignment.Id]
-						assignmentDetail, err := c.GetAssignmentDetail(assignment.Id, studentId)
-						if err != nil {
-							log.Error(err)
-							continue
-						}
-						if found && reflect.DeepEqual(assignmentDetailSaved, *assignmentDetail) {
-							continue
-						}
-						(*assignments)[assignment.Id] = *assignmentDetail
-						if !isFirstRun {
-							botSentNotify(bot, chatId, assignmentDetail.String(c), assignmentDetail.GetAttachmentsUrls(c))
+		for _, studentId := range studentIds {
+			currentTime := time.Now()
+			weekStrat := currentTime.AddDate(0, 0, -8)
+			weekEnd := currentTime.AddDate(0, 0, 8)
+			newAssignments, err := c.GetAssignments(
+				studentId,
+				weekStrat.Format("2006-01-02"),
+				weekEnd.Format("2006-01-02"),
+				false,
+				false,
+				192,
+			)
+			if err != nil {
+				log.Fatal(err)
+			}
+			for _, weekday := range newAssignments.WeekDays {
+				for _, lesson := range weekday.Lessons {
+					if lesson.Assignments == nil {
+						continue
+					}
+					for _, assignment := range lesson.Assignments {
+						if assignment.AssignmentName != "" {
+							assignmentDetailSaved, found := (*assignments)[assignment.Id]
+							assignmentDetail, err := c.GetAssignmentDetail(assignment.Id, studentId)
+							if err != nil {
+								log.Error(err)
+								continue
+							}
+							if found && reflect.DeepEqual(assignmentDetailSaved, *assignmentDetail) {
+								continue
+							}
+							(*assignments)[assignment.Id] = *assignmentDetail
+							if !isFirstRun {
+								c.botSentNotify(bot, chatId, lesson.DayString()+assignmentDetail.String(c), assignmentDetail.GetAttachmentsUrls(c))
+							}
+							/*
+								if !isFirstAttSend[studentId] && len(assignmentDetail.Attachments) > 0 {
+									c.botSentNotify(bot, chatId, lesson.DayString() + assignmentDetail.String(c), assignmentDetail.GetAttachmentsUrls(c))
+									isFirstAttSend[studentId] = true
+								}
+							*/
 						}
 					}
 				}
 			}
+			time.Sleep(time.Duration(intervalSeconds) * time.Second)
 		}
 		isFirstRun = false
-		time.Sleep(time.Duration(intervalSeconds) * time.Second)
 	}
-
 }
