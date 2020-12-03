@@ -242,12 +242,13 @@ func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
 	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		log.Println("Error")
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusUnauthorized {
-		c.DoAuth()
+		if err = c.DoAuth(); err != nil {
+			resp, _ = c.HTTPClient.Do(req)
+		}
 	} else if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		var errRes errorResponse
 		if err = json.NewDecoder(resp.Body).Decode(&errRes); err == nil {
@@ -358,7 +359,7 @@ func NewClientApi(baseUrl string, authParams *AuthParams) *ClientApi {
 		HTTPClient: &httpClient,
 	}
 	if err := c.DoAuth(); err != nil {
-		log.Fatal(err)
+		log.Error("DoAuth: ", err)
 	}
 	return c
 }
@@ -520,6 +521,7 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 		return
 	}
 	isFirstRun := true
+	var errInLoop error
 	for {
 		for _, studentId := range studentIds {
 			currentTime := time.Now()
@@ -534,7 +536,9 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 				192,
 			)
 			if err != nil {
-				log.Fatal(err)
+				log.Error("GetAssignments: ", err)
+				errInLoop = err
+				break
 			}
 			for _, weekday := range newAssignments.WeekDays {
 				for _, lesson := range weekday.Lessons {
@@ -572,5 +576,10 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 			time.Sleep(time.Duration(intervalSeconds) * time.Second)
 		}
 		isFirstRun = false
+		if errInLoop != nil {
+			waitSeconds := intervalSeconds * 5
+			log.Warningf("LoopPullingOrder: error is not nil, wait %d seconds ", waitSeconds)
+			time.Sleep(time.Duration(waitSeconds) * time.Second)
+		}
 	}
 }
