@@ -516,7 +516,7 @@ func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 		description)
 }
 
-func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, assignments *map[int]DiaryAssignmentDetail, studentIds []int) {
+func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, yearId int, assignments *map[int]DiaryAssignmentDetail, studentIds []int) {
 	if intervalSeconds == 0 {
 		return
 	}
@@ -533,7 +533,7 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 				weekEnd.Format("2006-01-02"),
 				false,
 				false,
-				192,
+				yearId,
 			)
 			if err != nil {
 				log.Error("GetAssignments: ", err)
