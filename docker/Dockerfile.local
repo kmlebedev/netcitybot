@@ -1,0 +1,14 @@
+FROM golang:1.19-alpine as builder
+ENV GOARCH=amd64
+
+COPY ./ /go/src/github.com/kmlebedev/txmlconnector/
+
+WORKDIR /go/src/github.com/kmlebedev/txmlconnector
+
+RUN go mod download && GOOS=linux CGO_ENABLED=0 go build -ldflags "-extldflags -static"
+
+FROM alpine AS final
+
+COPY ./netcitybot /usr/bin/
+
+ENTRYPOINT ["/usr/bin/netcitybot"]

@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build-release-binaries_windows:
+    name: Build netcitybot
+    permissions:
+      contents: write  # for wangyoucao577/go-release-action to upload release assets
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        goos: [windows]
+        goarch: [amd64]
+
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Go Release server
+        uses: wangyoucao577/go-release-action@16624612d4e2b73de613857a362d294700207fff # v1.22
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          goos: ${{ matrix.goos }}
+          goarch: ${{ matrix.goarch }}
+          overwrite: true
+          binary_name: "netcitybot"
+          ldflags: "-extldflags -static -s -w"
+          asset_name: "netcitybot_${{ matrix.goos }}_${{ matrix.goarch }}"

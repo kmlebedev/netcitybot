@@ -1,0 +1,5 @@
+FROM alpine AS final
+
+COPY ./netcitybot /usr/bin/
+
+ENTRYPOINT ["/usr/bin/netcitybot"]
