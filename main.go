@@ -11,7 +11,8 @@ import (
 
 const (
 	EnvKeyTgbotToken      = "BOT_API_TOKEN"
-	EnvKeyTgbotChatId     = "BOT_CHAT_ID" // -1001402812566
+	EnvKeyTgbotChatId     = "BOT_CHAT_ID"    // -1001402812566
+	EnvKeyNetCitySchool   = "NETCITY_SCHOOL" // МБОУ СОШ №16
 	EnvKeyNetCityUsername = "NETCITY_USERNAME"
 	EnvKeyNetCityPassword = "NETCITY_PASSWORD"
 	EnvKeyNetCityUrl      = "NETCITY_URL" // https://netcity.eimc.ru"
@@ -37,20 +38,12 @@ func main() {
 		log.Panic(err)
 	}
 	bot.Debug = true
-
-	p := netcity.AuthParams{
-		LoginType: 1,
-		Cid:       2,
-		Scid:      23,
-		Pid:       -1,
-		Cn:        3,
-		Sft:       2,
-		Sid:       66,
-		Username:  os.Getenv(EnvKeyNetCityUsername),
-		Password:  os.Getenv(EnvKeyNetCityPassword),
-	}
-
-	api := netcity.NewClientApi(os.Getenv(EnvKeyNetCityUrl), &p)
+	api := netcity.NewClientApi(&netcity.Config{
+		Url:      os.Getenv(EnvKeyNetCityUrl),
+		School:   os.Getenv(EnvKeyNetCitySchool),
+		Username: os.Getenv(EnvKeyNetCityUsername),
+		Password: os.Getenv(EnvKeyNetCityPassword),
+	})
 	assignments := map[int]netcity.DiaryAssignmentDetail{}
 	go api.LoopPullingOrder(60, bot, chatId, yearId, &assignments, []int{76474, 76468})
 	u := tgbotapi.NewUpdate(0)

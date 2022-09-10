@@ -1,0 +1,350 @@
+openapi: 3.0.0
+servers:
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/LEBEDEVKM/NetSchool/1.0.0
+  - description: NetCity Yekateringurg
+    url: http://188.226.50.152/webapi
+info:
+  version: "1.0.0"
+  title: NetSchool
+  description: The API for the NetSchool irTech project
+paths:
+  /student/diary:
+    get:
+      tags:
+        - student
+      description: returns all assignments
+      operationId: studentDiary
+      parameters:
+        - name: studentId
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: weekStart
+          required: false
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: weekEnd
+          required: false
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: withLaAssigns
+          required: false
+          in: query
+          schema:
+            type: boolean
+        - name: withPastMandatory
+          required: false
+          in: query
+          schema:
+            type: boolean
+        - name: yearId
+          required: false
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: All the prepareloginform
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Diary'
+  /logindata:
+    get:
+      tags:
+        - login
+      description: returns all login data
+      operationId: logindata
+      responses:
+        '200':
+          description: All the login data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginData'
+  /prepareloginform:
+    get:
+      tags:
+        - login
+      description: returns all prepareloginform
+      operationId: prepareloginform
+      parameters:
+        - name: cacheVer
+          required: false
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: All the prepareloginform
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrepareLoginForm'
+  /prepareemloginform:
+    get:
+      tags:
+        - login
+      description: returns all prepareemloginform
+      operationId: prepareemloginform
+      parameters:
+        - name: cacheVer
+          required: false
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: All the prepareemloginform
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrepareEmLoginForm'
+components:
+  schemas:
+    Mark:
+      type: object
+      properties:
+        assignmentId:
+          type: integer
+        studentId:
+          type: integer
+        mark:
+          type: integer
+        dutyMark:
+          type: boolean
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        originalFileName:
+          type: string
+        description:
+          type: string
+    DiaryAssignment:
+      type: object
+      properties:
+        mark:
+          $ref: '#/components/schemas/Mark'
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+        id:
+          type: integer
+        typeId:
+          type: integer
+        assignmentName:
+          type: string
+        weight:
+          type: integer
+        dueDate:
+          type: string
+          format: date
+        classMeetingId:
+          type: integer
+        existsTestPlan:
+          type: boolean
+    DiaryLesson:
+      type: object
+      properties:
+        classmeetingId:
+          type: string
+        day:
+          type: string
+          format: date
+          example: "2020-11-30T00:00:00"
+        number:
+          type: integer
+        room:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        subjectName:
+          type: string
+        assignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiaryAssignment'
+    DiaryWeekDays:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        lessons:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiaryLesson'
+    Diary:
+      type: object
+      properties:
+        weekStart:
+          type: string
+        weekEnd:
+          type: string
+        weekDays:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiaryWeekDays'
+        termName:
+          type: string
+        className:
+          type: string
+    PrepareEmLoginForm:
+      type: object
+      properties:
+        countries:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        states:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        hlevels:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        ems:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        em_cid:
+          type: integer
+        em_sid:
+          type: integer
+        hlevel:
+          type: integer
+        emId:
+          type: integer
+    PrepareLoginForm:
+      type: object
+      properties:
+        countries:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        states:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        provinces:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        cities:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        funcs:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        schools:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+        cid:
+          type: integer
+        sid:
+          type: integer
+        pid:
+          type: integer
+        cn:
+          type: integer
+        sft:
+          type: integer
+        scid:
+          type: integer
+        hlevels:
+          type: object
+        ems:
+          type: object
+    LoginData:
+      type: object
+      properties:
+        productName:
+          type: string
+        version:
+          type: string
+        esiaLoginPage:
+          type: string
+        cacheVer:
+          type: string
+        schoolLogin:
+          type: boolean
+        emLogin:
+          type: boolean
+        windowsAuth:
+          type: boolean
+        enableSms:
+          type: boolean
+        esiaMainAuth:
+          type: boolean
+        esiaButton:
+          type: boolean
+        signatureLogin:
+          type: boolean

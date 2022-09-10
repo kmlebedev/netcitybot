@@ -3,6 +3,7 @@ package netcity
 // https://dev.to/plutov/writing-rest-api-client-in-go-3fkg
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/goodsign/monday"
+	"github.com/kmlebedev/netcitybot/swagger"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
@@ -38,14 +40,21 @@ func (c *DateTime) UnmarshalJSON(b []byte) (err error) {
 	return
 }
 
+type Config struct {
+	Url      string
+	School   string
+	Username string
+	Password string
+}
+
 type AuthParams struct {
-	LoginType int
-	Cid       int
-	Sid       int
-	Pid       int
-	Cn        int
-	Sft       int
-	Scid      int
+	LoginType int32
+	Cid       int32
+	Sid       int32
+	Pid       int32
+	Cn        int32
+	Sft       int32
+	Scid      int32
 	UN        string
 	PW        string
 	Lt        string
@@ -61,6 +70,7 @@ type SentMessagesItem struct {
 }
 
 type ClientApi struct {
+	WebApi       *swagger.APIClient
 	BaseUrl      string
 	AuthParams   *AuthParams
 	HTTPClient   *http.Client
@@ -96,7 +106,7 @@ type Attachment struct {
 	Id               int    `json:"id"`
 	Name             string `json:"name"`
 	OriginalFileName string `json:"originalFileName"` //20.11.20.docx
-	Sescription      string `json:"description"`
+	Description      string `json:"description"`
 }
 
 type Mark struct {
@@ -209,15 +219,14 @@ func MD5(text string) string {
 func (a *AuthParams) GetUrlValues(authData *AuthData) url.Values {
 	//  str(salt + hashlib.md5(password.encode('utf-8')).hexdigest()).encode('utf-8')
 	md5Password := MD5(authData.Salt + MD5(a.Password))
-
 	return url.Values{
-		"LoginType": {strconv.Itoa(a.LoginType)},
-		"cid":       {strconv.Itoa(a.Cid)},
-		"sid":       {strconv.Itoa(a.Sid)},
-		"pid":       {strconv.Itoa(a.Pid)},
-		"cn":        {strconv.Itoa(a.Cn)},
-		"sft":       {strconv.Itoa(a.Sft)},
-		"scid":      {strconv.Itoa(a.Scid)},
+		"LoginType": {strconv.FormatInt(int64(a.LoginType), 10)},
+		"cid":       {strconv.FormatInt(int64(a.Cid), 10)},
+		"sid":       {strconv.FormatInt(int64(a.Sid), 10)},
+		"pid":       {strconv.FormatInt(int64(a.Pid), 10)},
+		"cn":        {strconv.FormatInt(int64(a.Cn), 10)},
+		"sft":       {strconv.FormatInt(int64(a.Sft), 10)},
+		"scid":      {strconv.FormatInt(int64(a.Scid), 10)},
 		"UN":        {a.Username},
 		"PW":        {md5Password[:len(a.Password)]},
 		"lt":        {authData.Lt},
@@ -347,19 +356,43 @@ func (c *ClientApi) DoAuth() error {
 	return nil
 }
 
-func NewClientApi(baseUrl string, authParams *AuthParams) *ClientApi {
+func NewClientApi(config *Config) *ClientApi {
 	cookieJar, _ := cookiejar.New(nil)
 	httpClient := http.Client{
 		Timeout: time.Minute,
 		Jar:     cookieJar,
 	}
+	webApi := swagger.NewAPIClient(&swagger.Configuration{
+		BasePath: config.Url + "/webapi",
+		DefaultHeader: map[string]string{
+			"Referer":          config.Url + "/",
+			"X-Requested-With": "XMLHttpRequest",
+			"Accept":           "application/json, text/javascript, */*; q=0.01",
+		},
+		HTTPClient: &httpClient,
+	})
+	prepareLoginForm, _, err := webApi.LoginApi.Prepareloginform(context.Background(), nil)
+	if err != nil {
+		log.Fatal("Prepareloginform: ", err)
+	}
 	c := &ClientApi{
-		AuthParams: authParams,
-		BaseUrl:    baseUrl,
+		WebApi: webApi,
+		AuthParams: &AuthParams{
+			LoginType: 1,
+			Cid:       prepareLoginForm.Cid,
+			Scid:      prepareLoginForm.Scid,
+			Pid:       prepareLoginForm.Pid,
+			Cn:        prepareLoginForm.Cn,
+			Sft:       prepareLoginForm.Sft,
+			Sid:       prepareLoginForm.Sid,
+			Username:  config.Username,
+			Password:  config.Password,
+		},
+		BaseUrl:    config.Url,
 		HTTPClient: &httpClient,
 	}
 	if err := c.DoAuth(); err != nil {
-		log.Error("DoAuth: ", err)
+		log.Fatal("DoAuth: ", err)
 	}
 	return c
 }
