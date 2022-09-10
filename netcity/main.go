@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/goodsign/monday"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -85,7 +85,7 @@ type errorResponse struct {
 	Details string `josn:"details"`
 }
 
-//  {"lt":"850328404","ver":"709065789","salt":"20371071715"}
+// {"lt":"850328404","ver":"709065789","salt":"20371071715"}
 type AuthData struct {
 	Lt   string `json:"lt"`
 	Ver  string `json:"ver"`
@@ -267,9 +267,9 @@ func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
 	return nil
 }
 
-//curl 'https://netcity.eimc.ru/asp/Announce/ViewAnnouncements.asp' \
-//  -H 'Content-Type: application/x-www-form-urlencoded' \
-//  --data-raw 'at=37763742510589491998710' \
+//	curl 'https://netcity.eimc.ru/asp/Announce/ViewAnnouncements.asp' \
+//	 -H 'Content-Type: application/x-www-form-urlencoded' \
+//	 --data-raw 'at=37763742510589491998710' \
 func (c *ClientApi) DoViewAnnouncements() error {
 	// _, _ = c.HTTPClient.Get(fmt.Sprintf("%s/asp/jumptologin.asp?jmp=/?AL=Y", c.BaseUrl))
 	req, err := http.NewRequest("POST",
@@ -399,16 +399,12 @@ func (c *ClientApi) botSentDoc(bot *tgbotapi.BotAPI, chatId int64, docs *map[str
 			log.Error(resp.Request)
 			return
 		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		file := tgbotapi.FileBytes{
-			Name:  k,
-			Bytes: body,
-		}
-		_, err = bot.Send(tgbotapi.NewDocumentUpload(chatId, file))
+		_, err = bot.Send(tgbotapi.NewMediaGroup(chatId, []interface{}{
+			tgbotapi.NewInputMediaDocument(tgbotapi.FileReader{
+				Name:   k,
+				Reader: resp.Body,
+			}),
+		}))
 		if err != nil {
 			log.Error(err)
 		}

@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/kmlebedev/netcitybot/netcity"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 )
@@ -56,7 +56,7 @@ func main() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	updates, err := bot.GetUpdatesChan(u)
+	updates := bot.GetUpdatesChan(u)
 	for update := range updates {
 		if update.Message == nil { // ignore any non-Message Updates
 			continue
@@ -69,6 +69,8 @@ func main() {
 			reply = "И тебе привет."
 		}
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, reply)
-		bot.Send(msg)
+		if _, err := bot.Send(msg); err != nil {
+			log.Error(err)
+		}
 	}
 }
