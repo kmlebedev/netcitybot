@@ -1,6 +1,6 @@
 # {{classname}}
 
-All URIs are relative to *https://virtserver.swaggerhub.com/LEBEDEVKM/NetSchool/1.0.0*
+All URIs are relative to *https://virtserver.swaggerhub.com/LEBEDEVKM/NetSchool/4.30.43656*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------

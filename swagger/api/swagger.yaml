@@ -2,13 +2,39 @@ openapi: 3.0.0
 info:
   title: NetSchool
   description: The API for the NetSchool irTech project
-  version: 1.0.0
+  version: 4.30.43656
 servers:
-- url: https://virtserver.swaggerhub.com/LEBEDEVKM/NetSchool/1.0.0
+- url: https://virtserver.swaggerhub.com/LEBEDEVKM/NetSchool/4.30.43656
   description: SwaggerHub API Auto Mocking
 - url: http://188.226.50.152/webapi
   description: NetCity Yekateringurg
 paths:
+  /grade/assignment/types:
+    get:
+      tags:
+      - assignment
+      description: returns all assignment types
+      operationId: assignmentTypes
+      responses:
+        "200":
+          description: All the assignment types
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/assignmentTypes'
+  /student/diary/init:
+    get:
+      tags:
+      - student
+      description: returns strudent diary init data
+      operationId: studentDiaryInit
+      responses:
+        "200":
+          description: Init data the strudent diary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/studentDiaryInit'
   /student/diary:
     get:
       tags:
@@ -22,7 +48,7 @@ paths:
         style: form
         explode: true
         schema:
-          type: string
+          type: integer
       - name: weekStart
         in: query
         required: false
@@ -67,6 +93,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Diary'
+  /student/diary/assigns/{assignId}:
+    get:
+      tags:
+      - diary
+      description: returns assign information
+      operationId: diaryAssignnDetails
+      parameters:
+      - name: assignId
+        in: path
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: integer
+      - name: studentId
+        in: query
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: integer
+      responses:
+        "200":
+          description: Details about assign
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/diaryAssignDetails'
   /logindata:
     get:
       tags:
@@ -124,6 +178,152 @@ paths:
                 $ref: '#/components/schemas/PrepareEmLoginForm'
 components:
   schemas:
+    diaryAssignDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5111111
+        assignmentName:
+          type: string
+          example: Развитие речи. Сочинение-рассуждение по рассказу «Коллекционная
+            вещь» Тибора Фишера
+        activityName:
+          type: string
+          example: nil
+        problemName:
+          type: string
+          example: nil
+        subjectGroup:
+          $ref: '#/components/schemas/diaryAssignDetails_subjectGroup'
+        teacher:
+          $ref: '#/components/schemas/diaryAssignDetails_teacher'
+        productId:
+          type: integer
+        isDeleted:
+          type: boolean
+          example: false
+        weight:
+          type: integer
+          example: 10
+        date:
+          type: string
+          format: date
+        description:
+          type: string
+          example: Задание по рядам - рассуждение по картине. Смотрите прикреплённый
+            файл
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/diaryAssignDetails_attachments'
+        contentElements:
+          type: array
+          example: nil
+          items:
+            type: object
+        codeContentElements:
+          type: array
+          example: nil
+          items:
+            type: object
+      example:
+        date: 2000-01-23
+        attachments:
+        - originalFileName: Дз 5К.doc
+          name: Дз 5К.doc
+          description: nil
+          id: 1111
+        - originalFileName: Дз 5К.doc
+          name: Дз 5К.doc
+          description: nil
+          id: 1111
+        productId: 0
+        subjectGroup:
+          name: 5ж/Русский язык
+          id: 171111
+        contentElements: nil
+        activityName: nil
+        weight: 10
+        description: Задание по рядам - рассуждение по картине. Смотрите прикреплённый
+          файл
+        problemName: nil
+        teacher:
+          name: Иванова Марья Ивановна
+          id: 71111
+        isDeleted: false
+        codeContentElements: nil
+        id: 5111111
+        assignmentName: Развитие речи. Сочинение-рассуждение по рассказу «Коллекционная
+          вещь» Тибора Фишера
+    studentDiaryInit:
+      type: object
+      properties:
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/studentDiaryInit_students'
+        currentStudentId:
+          type: integer
+          example: 0
+        weekStart:
+          type: string
+          format: date
+        yaClass:
+          type: boolean
+          example: false
+        yaClassAuthUrl:
+          type: string
+          example: http://www.yaklass.ru/Account/NetSchoolGate?server=http%3a%2f%2fnetcity.ru%2f&ns_token=999999999999&ts=1662877853&nn=417563999&sg=7-JyisFQvEp_ayPSXfp_PpfCd0o1
+        newDiskToken:
+          type: string
+          example: ""
+        newDiskWasRequest:
+          type: boolean
+          example: false
+        ttsuRl:
+          type: string
+          example: http://NETCITY:80/
+        externalUrl:
+          type: string
+          example: http://netcity.ru/
+        weight:
+          type: boolean
+          example: false
+        maxMark:
+          type: integer
+          example: 5
+        withLaAssigns:
+          type: boolean
+          example: true
+      example:
+        externalUrl: http://netcity.ru/
+        weekStart: 2000-01-23
+        currentStudentId: 0
+        newDiskWasRequest: false
+        ttsuRl: http://NETCITY:80/
+        students:
+        - studentId: 1111
+          classId: 0
+          iupGrade: 0
+          nickName: Иванов Иван
+          className: nil
+        - studentId: 1111
+          classId: 0
+          iupGrade: 0
+          nickName: Иванов Иван
+          className: nil
+        weight: false
+        yaClass: false
+        yaClassAuthUrl: http://www.yaklass.ru/Account/NetSchoolGate?server=http%3a%2f%2fnetcity.ru%2f&ns_token=999999999999&ts=1662877853&nn=417563999&sg=7-JyisFQvEp_ayPSXfp_PpfCd0o1
+        maxMark: 5
+        newDiskToken: ""
+        withLaAssigns: true
+    assignmentTypes:
+      type: array
+      items:
+        $ref: '#/components/schemas/assignmentTypes_inner'
+      x-schema-name: assignmentTypes
     Mark:
       type: object
       properties:
@@ -768,6 +968,94 @@ components:
         productName: productName
         esiaButton: true
         enableSms: true
+    diaryAssignDetails_subjectGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 171111
+        name:
+          type: string
+          example: 5ж/Русский язык
+      example:
+        name: 5ж/Русский язык
+        id: 171111
+    diaryAssignDetails_teacher:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 71111
+        name:
+          type: string
+          example: Иванова Марья Ивановна
+      example:
+        name: Иванова Марья Ивановна
+        id: 71111
+    diaryAssignDetails_attachments:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1111
+        name:
+          type: string
+          example: Дз 5К.doc
+        originalFileName:
+          type: string
+          example: Дз 5К.doc
+        description:
+          type: string
+          example: nil
+      example:
+        originalFileName: Дз 5К.doc
+        name: Дз 5К.doc
+        description: nil
+        id: 1111
+    studentDiaryInit_students:
+      type: object
+      properties:
+        studentId:
+          type: integer
+          example: 1111
+        nickName:
+          type: string
+          example: Иванов Иван
+        className:
+          type: object
+          example: nil
+        classId:
+          type: integer
+          example: 0
+        iupGrade:
+          type: integer
+          example: 0
+      example:
+        studentId: 1111
+        classId: 0
+        iupGrade: 0
+        nickName: Иванов Иван
+        className: nil
+    assignmentTypes_inner:
+      type: object
+      properties:
+        abbr:
+          type: string
+          example: ДЗ
+        order:
+          type: integer
+          example: 15
+        id:
+          type: integer
+          example: 3
+        name:
+          type: string
+          example: Домашнее задание
+      example:
+        name: Домашнее задание
+        id: 3
+        abbr: ДЗ
+        order: 15
     PrepareEmLoginForm_countries:
       type: object
       properties:

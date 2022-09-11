@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -15,8 +17,12 @@ const (
 	EnvKeyNetCitySchool   = "NETCITY_SCHOOL" // МБОУ СОШ №16
 	EnvKeyNetCityUsername = "NETCITY_USERNAME"
 	EnvKeyNetCityPassword = "NETCITY_PASSWORD"
-	EnvKeyNetCityUrl      = "NETCITY_URL" // https://netcity.eimc.ru"
+	EnvKeyNetCityUrl      = "NETCITY_URL"         // https://netcity.eimc.ru"
+	EnvKeyNetStudentIds   = "NETCITY_STUDENT_IDS" // 76474,76468
 	EnvKeyYearId          = "NETCITY_YEAR_ID"
+	EnvKeyRedisAddress    = "REDIS_ADDRESS"
+	EnvKeyRedisDB         = "REDIS_DB"
+	EnvKeyRedisPassword   = "REDIS_PASSWORD"
 )
 
 func main() {
@@ -38,6 +44,19 @@ func main() {
 		log.Panic(err)
 	}
 	bot.Debug = true
+
+	redisOpt := redis.Options{
+		Addr:     os.Getenv(EnvKeyRedisAddress),
+		Password: os.Getenv(EnvKeyRedisPassword),
+	}
+	//
+	var rdb *redis.Client
+	if redisOpt.Password != "" {
+		if db, err := strconv.Atoi(os.Getenv(EnvKeyRedisDB)); err != nil {
+			redisOpt.DB = db
+		}
+		rdb = redis.NewClient(&redisOpt)
+	}
 	api := netcity.NewClientApi(&netcity.Config{
 		Url:      os.Getenv(EnvKeyNetCityUrl),
 		School:   os.Getenv(EnvKeyNetCitySchool),
@@ -45,7 +64,13 @@ func main() {
 		Password: os.Getenv(EnvKeyNetCityPassword),
 	})
 	assignments := map[int]netcity.DiaryAssignmentDetail{}
-	go api.LoopPullingOrder(60, bot, chatId, yearId, &assignments, []int{76474, 76468})
+	var studentIds []int
+	for _, strId := range strings.Split(strings.TrimSpace(os.Getenv(EnvKeyNetStudentIds)), ",") {
+		if id, err := strconv.Atoi(strings.Trim(strId, " ")); err != nil {
+			studentIds = append(studentIds, id)
+		}
+	}
+	go api.LoopPullingOrder(60, bot, chatId, yearId, rdb, &assignments, &studentIds)
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
