@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/go-redis/redis/v8"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/kmlebedev/netcitybot/swagger"
@@ -76,7 +77,9 @@ type ClientApi struct {
 	HTTPClient   *http.Client
 	At           string
 	Ver          int
+	Uid          int
 	SentMessages []SentMessagesItem
+	Years        map[string]int
 }
 
 // MD5 hashes using md5 algorithm
@@ -183,6 +186,64 @@ func (c *ClientApi) DoViewAnnouncements() error {
 	return nil
 }
 
+func FilterAttrIsCurYear(i int, s *goquery.Selection) bool {
+	name, ok := s.Attr("name")
+	return ok && name == "CURRYEAR"
+}
+
+func (c *ClientApi) Logout() {
+	req, err := http.NewRequest("POST",
+		fmt.Sprintf("%s/asp/MySettings/logout.asp", c.BaseUrl),
+		strings.NewReader(url.Values{
+			"at":  {c.At},
+			"VER": {string(rune(c.Ver))},
+		}.Encode()),
+	)
+	if err != nil {
+		return
+	}
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+	req.Header.Set("Referer", fmt.Sprintf("%s/asp/Announce/ViewAnnouncements.asp", c.BaseUrl))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	c.HTTPClient.Do(req)
+}
+
+func (c *ClientApi) GetCurrentyYearId() (currentYearId int, err error) {
+	req, err := http.NewRequest("POST",
+		fmt.Sprintf("%s/asp/MySettings/MySettings.asp", c.BaseUrl),
+		strings.NewReader(url.Values{"at": {c.At}, "VER": {string(rune(c.Ver))}, "UID": {string(rune(c.Uid))}}.Encode()))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+	req.Header.Set("Referer", fmt.Sprintf("%s/asp/Announce/ViewAnnouncements.asp", c.BaseUrl))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+	// <select class="form-control" name="CURRYEAR" onchange="OnChangeSelect('Edit','/asp/MySettings/MySettings.asp');">
+	doc.Find(".form-control").FilterFunction(FilterAttrIsCurYear).Each(func(_ int, sel *goquery.Selection) {
+		// <option value="206" selected>2021/2022</option>
+		sel.Find("option").Each(func(_ int, opt *goquery.Selection) {
+			if strYearId, ok := opt.Attr("value"); ok {
+				yearId, _ := strconv.Atoi(strYearId)
+				c.Years[opt.Text()] = yearId
+				if _, isSelected := opt.Attr("selected"); isSelected {
+					log.Infof("CURRYEAR value: %+v, %+v", opt.AttrOr("value", ""), opt.Text())
+					currentYearId = yearId
+				}
+			}
+		})
+	})
+	return
+}
+
 func (c *ClientApi) DoAuth() error {
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/webapi/auth/getdata", c.BaseUrl), nil)
 	if err != nil {
@@ -223,6 +284,7 @@ func (c *ClientApi) DoAuth() error {
 	if err := c.sendRequest(req, &diaryInit); err != nil {
 		return err
 	}
+	c.Uid = diaryInit.Students[0].StudentId
 	return nil
 }
 
@@ -267,6 +329,7 @@ func NewClientApi(config *Config) *ClientApi {
 		},
 		BaseUrl:    config.Url,
 		HTTPClient: &httpClient,
+		Years:      make(map[string]int),
 	}
 	if err := c.DoAuth(); err != nil {
 		log.Fatal("DoAuth: ", err)
@@ -423,6 +486,7 @@ func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 }
 
 func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, yearId int, rdb *redis.Client, assignments *map[int]DiaryAssignmentDetail, studentIds *[]int) {
+	log.Infof("LoopPullingOrder chatId: %+v, yearId: %+v", chatId, yearId)
 	if intervalSeconds == 0 {
 		return
 	}

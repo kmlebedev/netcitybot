@@ -35,10 +35,6 @@ func main() {
 	if err != nil {
 		log.Fatal(fmt.Errorf("bot chat id error in env key %s: %s", EnvKeyTgbotChatId, err))
 	}
-	yearId, err := strconv.Atoi(os.Getenv(EnvKeyYearId))
-	if err != nil {
-		log.Fatal(fmt.Errorf("netcity year id error in env key %s: %s", EnvKeyYearId, err))
-	}
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		log.Panic(err)
@@ -70,7 +66,14 @@ func main() {
 			studentIds = append(studentIds, id)
 		}
 	}
-	go api.LoopPullingOrder(60, bot, chatId, yearId, rdb, &assignments, &studentIds)
+	currentyYearId, err := strconv.Atoi(os.Getenv(EnvKeyYearId))
+	if err != nil || currentyYearId == 0 {
+		if currentyYearId, err = api.GetCurrentyYearId(); err != nil || currentyYearId == 0 {
+			api.Logout()
+			log.Fatal(fmt.Errorf("netcity year id error: %+v", err))
+		}
+	}
+	go api.LoopPullingOrder(60, bot, chatId, currentyYearId, rdb, &assignments, &studentIds)
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
