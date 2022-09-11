@@ -101,6 +101,7 @@ func main() {
 		api.Logout()
 		log.Fatalf("netcity get all students:%+v %+v", len(api.Students), err)
 	}
+
 	log.Infof("Sync years: %d, classes: %d, students: %d", len(api.Years), len(api.Classes), len(api.Students))
 	go api.LoopPullingOrder(60, bot, chatId, currentyYearId, rdb, &assignments, &pullStudentIds)
 	u := tgbotapi.NewUpdate(0)

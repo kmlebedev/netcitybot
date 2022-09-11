@@ -443,7 +443,7 @@ func NewClientApi(config *Config) *ClientApi {
 		BaseUrl:    config.Url,
 		HTTPClient: &httpClient,
 		Years:      map[string]int32{},
-		Classes:    map[string]int32{"свой": 0},
+		Classes:    map[string]int32{},
 		Students:   map[StudentId]string{},
 	}
 	if err := c.DoAuth(); err != nil {
@@ -471,6 +471,7 @@ func (c *ClientApi) botSentDoc(bot *tgbotapi.BotAPI, chatId int64, docs *map[str
 	if docs == nil || len(*docs) == 0 {
 		return
 	}
+	var files []interface{}
 	for k, v := range *docs {
 		req, _ := http.NewRequest("GET", fmt.Sprintf("%s&VER=%d", v, c.Ver), nil)
 		c.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -487,15 +488,14 @@ func (c *ClientApi) botSentDoc(bot *tgbotapi.BotAPI, chatId int64, docs *map[str
 			log.Error(resp.Request)
 			return
 		}
-		_, err = bot.Send(tgbotapi.NewMediaGroup(chatId, []interface{}{
-			tgbotapi.NewInputMediaDocument(tgbotapi.FileReader{
-				Name:   k,
-				Reader: resp.Body,
-			}),
+		files = append(files, tgbotapi.NewInputMediaDocument(tgbotapi.FileReader{
+			Name:   k,
+			Reader: resp.Body,
 		}))
-		if err != nil {
-			log.Error(err)
-		}
+	}
+	_, err := bot.Send(tgbotapi.NewMediaGroup(chatId, files))
+	if err != nil {
+		log.Error(err)
 	}
 }
 
@@ -595,7 +595,6 @@ func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 		subjectName,
 		a.Teacher.Name,
 		a.Date.Format("2006-01-02"),
-		//a.Date[:len("2006-01-02")],
 		assignmentName,
 		description)
 }
@@ -607,6 +606,7 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 	}
 	isFirstRun := true
 	var errInLoop error
+	backOff := 0
 	for {
 		for _, studentId := range *studentIds {
 			currentTime := time.Now()
@@ -658,11 +658,13 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 					}
 				}
 			}
+			backOff = 0
 			time.Sleep(time.Duration(intervalSeconds) * time.Second)
 		}
 		isFirstRun = false
 		if errInLoop != nil {
-			waitSeconds := intervalSeconds * 5
+			backOff++
+			waitSeconds := intervalSeconds * backOff
 			log.Warningf("LoopPullingOrder: error is not nil, wait %d seconds ", waitSeconds)
 			time.Sleep(time.Duration(waitSeconds) * time.Second)
 		}
