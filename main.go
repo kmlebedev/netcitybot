@@ -7,8 +7,10 @@ import (
 	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 const (
@@ -26,6 +28,24 @@ const (
 )
 
 func main() {
+	var api *netcity.ClientApi
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	done := make(chan bool, 1)
+	go func() {
+		<-done
+		log.Info("exiting")
+		os.Exit(0)
+	}()
+	go func() {
+		sig := <-sigs
+		if api != nil {
+			api.Logout()
+		}
+		log.Info(sig)
+		done <- true
+	}()
+
 	token := os.Getenv(EnvKeyTgbotToken)
 	if token == "" {
 		log.Fatal(fmt.Errorf("bot api token not found in env key: %s", EnvKeyTgbotToken))
@@ -45,7 +65,7 @@ func main() {
 		Addr:     os.Getenv(EnvKeyRedisAddress),
 		Password: os.Getenv(EnvKeyRedisPassword),
 	}
-	//
+
 	var rdb *redis.Client
 	if redisOpt.Password != "" {
 		if db, err := strconv.Atoi(os.Getenv(EnvKeyRedisDB)); err != nil {
@@ -53,27 +73,36 @@ func main() {
 		}
 		rdb = redis.NewClient(&redisOpt)
 	}
-	api := netcity.NewClientApi(&netcity.Config{
+	api = netcity.NewClientApi(&netcity.Config{
 		Url:      os.Getenv(EnvKeyNetCityUrl),
 		School:   os.Getenv(EnvKeyNetCitySchool),
 		Username: os.Getenv(EnvKeyNetCityUsername),
 		Password: os.Getenv(EnvKeyNetCityPassword),
 	})
 	assignments := map[int]netcity.DiaryAssignmentDetail{}
-	var studentIds []int
+	var pullStudentIds []int
 	for _, strId := range strings.Split(strings.TrimSpace(os.Getenv(EnvKeyNetStudentIds)), ",") {
-		if id, err := strconv.Atoi(strings.Trim(strId, " ")); err != nil {
-			studentIds = append(studentIds, id)
+		if id, err := strconv.Atoi(strings.Trim(strId, " ")); err == nil {
+			pullStudentIds = append(pullStudentIds, id)
 		}
 	}
 	currentyYearId, err := strconv.Atoi(os.Getenv(EnvKeyYearId))
 	if err != nil || currentyYearId == 0 {
 		if currentyYearId, err = api.GetCurrentyYearId(); err != nil || currentyYearId == 0 {
 			api.Logout()
-			log.Fatal(fmt.Errorf("netcity year id error: %+v", err))
+			log.Fatalf("netcity year id error: %+v", err)
 		}
 	}
-	go api.LoopPullingOrder(60, bot, chatId, currentyYearId, rdb, &assignments, &studentIds)
+	if err := api.GetClasses(); err != nil {
+		api.Logout()
+		log.Fatalf("netcity get classes: %+v", err)
+	}
+	if err := api.GetAllStudents(); err != nil || len(api.Students) == 0 {
+		api.Logout()
+		log.Fatalf("netcity get all students:%+v %+v", len(api.Students), err)
+	}
+	log.Infof("Sync years: %d, classes: %d, students: %d", len(api.Years), len(api.Classes), len(api.Students))
+	go api.LoopPullingOrder(60, bot, chatId, currentyYearId, rdb, &assignments, &pullStudentIds)
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 

@@ -70,6 +70,11 @@ type SentMessagesItem struct {
 	AssignmentId int
 }
 
+type StudentId struct {
+	id      int32
+	classId int32
+}
+
 type ClientApi struct {
 	WebApi       *swagger.APIClient
 	BaseUrl      string
@@ -79,7 +84,9 @@ type ClientApi struct {
 	Ver          int
 	Uid          int
 	SentMessages []SentMessagesItem
-	Years        map[string]int
+	Years        map[string]int32
+	Classes      map[string]int32
+	Students     map[StudentId]string
 }
 
 // MD5 hashes using md5 algorithm
@@ -186,39 +193,145 @@ func (c *ClientApi) DoViewAnnouncements() error {
 	return nil
 }
 
-func FilterAttrIsCurYear(i int, s *goquery.Selection) bool {
+func FilterAttrIsCurYear(_ int, s *goquery.Selection) bool {
 	name, ok := s.Attr("name")
 	return ok && name == "CURRYEAR"
 }
 
-func (c *ClientApi) Logout() {
-	req, err := http.NewRequest("POST",
-		fmt.Sprintf("%s/asp/MySettings/logout.asp", c.BaseUrl),
-		strings.NewReader(url.Values{
-			"at":  {c.At},
-			"VER": {string(rune(c.Ver))},
-		}.Encode()),
-	)
-	if err != nil {
-		return
-	}
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
-	req.Header.Set("Referer", fmt.Sprintf("%s/asp/Announce/ViewAnnouncements.asp", c.BaseUrl))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	c.HTTPClient.Do(req)
+func FilterAttrIsMobilePhone(_ int, s *goquery.Selection) bool {
+	name, ok := s.Attr("name")
+	return ok && name == "MOBILEPHONE_MASK"
 }
 
-func (c *ClientApi) GetCurrentyYearId() (currentYearId int, err error) {
+func (c *ClientApi) DoReq(path string, payload *map[string]string) (*http.Response, error) {
+	urlValues := url.Values{
+		"at":  {c.At},
+		"VER": {string(rune(c.Ver))},
+	}
+	if payload != nil {
+		for k, v := range *payload {
+			urlValues.Add(k, v)
+		}
+	}
 	req, err := http.NewRequest("POST",
-		fmt.Sprintf("%s/asp/MySettings/MySettings.asp", c.BaseUrl),
-		strings.NewReader(url.Values{"at": {c.At}, "VER": {string(rune(c.Ver))}, "UID": {string(rune(c.Uid))}}.Encode()))
+		fmt.Sprintf("%s%s", c.BaseUrl, path),
+		strings.NewReader(urlValues.Encode()),
+	)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return c.HTTPClient.Do(req)
+}
+
+func (c *ClientApi) Logout() {
+	c.DoReq("/asp/MySettings/logout.asp", nil)
+}
+
+func (c *ClientApi) GetMobilePhone() (mobilePhone int, err error) {
+	resp, err := c.DoReq("/asp/MySettings/MySettings.asp", nil)
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
-	req.Header.Set("Referer", fmt.Sprintf("%s/asp/Announce/ViewAnnouncements.asp", c.BaseUrl))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := c.HTTPClient.Do(req)
+	defer resp.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+	// <input type="text" class="form-control " data-inputmask="'mask': '+9-999-9999999'" name="MOBILEPHONE_MASK" size="25" maxlength="20" value="7912222222" OnChange="dataChanged()">
+	doc.Find(".form-control").FilterFunction(FilterAttrIsMobilePhone).Each(func(_ int, sel *goquery.Selection) {
+		mobilePhone, err = strconv.Atoi(sel.AttrOr("value", ""))
+	})
+	return
+}
+
+func FilterAttrIsClasses(_ int, s *goquery.Selection) bool {
+	name, ok := s.Attr("name")
+	return ok && name == "CLASSES"
+}
+
+func (c *ClientApi) GetClasses() (err error) {
+	payload := map[string]string{
+		"OrgType": "0",
+		"FL":      "C",
+		"A":       "",
+	}
+	resp, err := c.DoReq("/asp/Messages/addrbkleft.asp", &payload)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return
+	}
+	doc.Find(".form-control").FilterFunction(FilterAttrIsClasses).Each(func(_ int, sel *goquery.Selection) {
+		sel.Find("option").Each(func(_ int, opt *goquery.Selection) {
+			if classId, err := strconv.ParseInt(opt.AttrOr("value", ""), 10, 32); err == nil {
+				c.Classes[opt.Text()] = int32(classId)
+			}
+		})
+	})
+	return
+}
+
+func (c *ClientApi) GetAllStudents() error {
+	for _, classId := range c.Classes {
+		students, err := c.GetStudents(classId)
+		if err != nil {
+			return err
+		}
+		for student, studentId := range *students {
+			c.Students[StudentId{id: studentId, classId: classId}] = student
+		}
+	}
+	return nil
+}
+
+func (c *ClientApi) GetStudents(classId int32) (*map[string]int32, error) {
+	students := map[string]int32{}
+	payload := map[string]string{
+		"LoginType": "0",
+		"OrgType":   "0",
+		"FL":        "C",
+		"A":         "",
+	}
+	if classId > 0 {
+		payload["CLASSES"] = strconv.FormatInt(int64(classId), 10)
+	}
+	resp, err := c.DoReq("/asp/Messages/addrbkleft.asp", &payload)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	//<tr>
+	//	<td nowrap><a href="JavaScript:AddBk('76338', 'Арефьев Даниил')" onclick="AddBk('76338', 'Арефьев Даниил');return false" title="Добавить к получателям" >Арефьев Даниил</a></td>
+	//	<td nowrap><a href="JavaScript:AddBk('76339', 'Арефьв Е. В.')" onclick="AddBk('76339', 'Арефьв Е. В.');return false" title="Добавить к получателям" >Арефьв Е. В.</a>
+	//		  ,<br><a href="JavaScript:AddBk('76340', 'Арефьева Т. В.')" onclick="AddBk('76340', 'Арефьева Т. В.');return false" title="Добавить к получателям" >Арефьева Т. В.</a></td>
+	//</tr>
+	doc.Find("table td:first-child a").Each(func(index int, a *goquery.Selection) {
+		if onclick, ok := a.Attr("onclick"); ok {
+			onclickArr := strings.Split(onclick, "'")
+			if len(onclickArr) > 1 {
+				studentId, _ := strconv.Atoi(onclickArr[1])
+				if studentId > 0 {
+					students[a.Text()] = int32(studentId)
+				}
+			}
+		}
+	})
+	if len(students) == 0 {
+		return nil, fmt.Errorf("students not found for payload: %+v doc: %v+", payload, doc.Text())
+	}
+	return &students, nil
+}
+
+func (c *ClientApi) GetCurrentyYearId() (currentYearId int, err error) {
+	resp, err := c.DoReq("/asp/MySettings/MySettings.asp", nil)
 	if err != nil {
 		return 0, err
 	}
@@ -233,7 +346,7 @@ func (c *ClientApi) GetCurrentyYearId() (currentYearId int, err error) {
 		sel.Find("option").Each(func(_ int, opt *goquery.Selection) {
 			if strYearId, ok := opt.Attr("value"); ok {
 				yearId, _ := strconv.Atoi(strYearId)
-				c.Years[opt.Text()] = yearId
+				c.Years[opt.Text()] = int32(yearId)
 				if _, isSelected := opt.Attr("selected"); isSelected {
 					log.Infof("CURRYEAR value: %+v, %+v", opt.AttrOr("value", ""), opt.Text())
 					currentYearId = yearId
@@ -329,7 +442,9 @@ func NewClientApi(config *Config) *ClientApi {
 		},
 		BaseUrl:    config.Url,
 		HTTPClient: &httpClient,
-		Years:      make(map[string]int),
+		Years:      map[string]int32{},
+		Classes:    map[string]int32{"свой": 0},
+		Students:   map[StudentId]string{},
 	}
 	if err := c.DoAuth(); err != nil {
 		log.Fatal("DoAuth: ", err)
