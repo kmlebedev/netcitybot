@@ -78,8 +78,12 @@ func main() {
 		Username: os.Getenv(EnvKeyNetCityUsername),
 		Password: os.Getenv(EnvKeyNetCityPassword),
 	})
-	currentyYearId, err := strconv.Atoi(os.Getenv(EnvKeyYearId))
-	if err != nil || currentyYearId == 0 {
+	var currentyYearId int
+	strYearId := os.Getenv(EnvKeyYearId)
+	if strYearId != "" {
+		currentyYearId, _ = strconv.Atoi(strYearId)
+	}
+	if currentyYearId == 0 {
 		if currentyYearId, err = api.GetCurrentyYearId(); err != nil || currentyYearId == 0 {
 			api.Logout()
 			log.Fatalf("netcity year id error: %+v", err)

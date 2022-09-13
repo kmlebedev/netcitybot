@@ -1,0 +1,27 @@
+version: '3.8'
+services:
+  bot:
+    image: kmlebedev/netcitybot:v0.0.2
+    environment:
+      NETCITY_URL:         ${NETCITY_URL}
+      NETCITY_SCHOOL:      ${NETCITY_SCHOOL}
+      NETCITY_USERNAME:    ${NETCITY_USERNAME}
+      NETCITY_PASSWORD:    ${NETCITY_PASSWORD}
+      NETCITY_STUDENT_IDS: ${NETCITY_STUDENT_IDS}
+      NETCITY_YEAR_ID:     ${NETCITY_YEAR_ID}
+      BOT_API_TOKEN:       ${BOT_API_TOKEN}
+      BOT_CHAT_ID:         ${BOT_CHAT_ID}
+    depends_on:
+      cache:
+        condition: service_started
+  cache:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    volumes:
+      - cache:/data
+volumes:
+  cache:
+    driver: local
