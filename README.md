@@ -52,9 +52,9 @@ INFO[0000] LoopPullingOrder chatId: xxxxx, yearId: 235
  * https://sgo.edu-74.ru/ (v5.9.62423.47)
 Екатеринбург: 
  * http://188.226.50.152/ (v4.30.43656.19) - Ленинский район 
- * http://schoolroo.ru/ (v)
+ * http://schoolroo.ru/ (v0.3)
 
 
-# Аналоги дотов
+# Аналоги ботов
 * https://github.com/ser-ogonkov/dnevnik_bot
 * https://github.com/nickname123456/BotNetSchool
