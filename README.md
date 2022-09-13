@@ -1,4 +1,4 @@
-# netcitybot
+# netcitybot телеграм бот для "Сетевой Город. Образование"
 
 Базовый функционал по пересылки домашки в групповой чат класс.
 Для этого нужно добавить, создать своего телеграмм бота и добавить его в группу класса.
@@ -83,12 +83,29 @@ Class | Method | HTTP request | Description
 4. Написать и отправить сообщение
 
 Рабочие сервера Сетевой Город. Образование:
+* МО
+  * http://www.netschool.pavlovo-school.ru/  (v5.5.61111.35)
 * Челябинск:
   * https://sgo.edu-74.ru/ (v5.9.62423.47)
 * Екатеринбург: 
   * http://188.226.50.152/ (v4.30.43656.19) - Ленинский район 
-  * http://schoolroo.ru/ (v0.3)
-
+  * http://schoolroo.ru/ (v5.6.61460.74) - Октябрьский район
+  * https://109.195.102.56/ (v5.0.60380.1220)
+  * http://lync.schoolroo.ru/ 
+*  СО http://xn---66-eddggda1bzcdazfq.xn--p1ai/
+  * http://31.28.113.161/ (v4.75.56652.961) - Красноуфимск 
+  * http://94.190.51.157/ - Первоуральск
+* http://spo.cit73.ru/ (v3.5.0.97) - Самара 
+* https://sgo.egov66.ru/ (v5.0.59442.919) - Нижний Тагил
+* https://net-school.cap.ru/ (v5.9.62423.47)
+* https://sgo1.edu71.ru/ (v5.0.59442.919)
+* https://sgo.e-mordovia.ru/ (v5.9.62423.47)
+* https://netschool.eduportal44.ru/ (v5.9.62423.47)
+* http://94.190.51.157/ (v5.7.61806.72)
+* https://dnevnik-kchr.ru/ (v4.55.51003.990) - Черкесск
+* https://poo.e-yakutia.ru/ (v3.7.0.19)
+* https://sgo.e-yakutia.ru/ (v5.9.62423.47) - Якутск
+* https://sgo.rso23.ru/ (5.9.62423.47) - Краснодар
 
 # Аналоги ботов
 * https://github.com/ser-ogonkov/dnevnik_bot
