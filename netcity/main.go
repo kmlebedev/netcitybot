@@ -601,7 +601,7 @@ func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 
 func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, yearId int, rdb *redis.Client, assignments *map[int]DiaryAssignmentDetail, studentIds *[]int) {
 	log.Infof("LoopPullingOrder chatId: %+v, yearId: %+v", chatId, yearId)
-	if intervalSeconds == 0 {
+	if intervalSeconds == 0 || bot == nil || chatId == 0 || yearId == 0 || studentIds == nil || len(*studentIds) == 0 {
 		return
 	}
 	isFirstRun := true
