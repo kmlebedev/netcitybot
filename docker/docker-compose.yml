@@ -11,7 +11,7 @@ services:
       NETCITY_YEAR_ID:     ${NETCITY_YEAR_ID}
       BOT_API_TOKEN:       ${BOT_API_TOKEN}
       BOT_CHAT_ID:         ${BOT_CHAT_ID}
-      REDIS_ADDRESS:       redis://redis:6379
+      REDIS_ADDRESS:       redis://cache:6379
       REDIS_DB:            0
       REDIS_PASSWORD:      eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
     depends_on:
