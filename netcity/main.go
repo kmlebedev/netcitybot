@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -76,17 +77,21 @@ type StudentId struct {
 }
 
 type ClientApi struct {
-	WebApi       *swagger.APIClient
-	BaseUrl      string
-	AuthParams   *AuthParams
-	HTTPClient   *http.Client
-	At           string
-	Ver          int
-	Uid          int
-	SentMessages []SentMessagesItem
-	Years        map[string]int32
-	Classes      map[string]int32
-	Students     map[StudentId]string
+	WebApi          *swagger.APIClient
+	BaseUrl         string
+	AuthParams      *AuthParams
+	HTTPClient      *http.Client
+	At              string
+	Ver             int
+	Uid             int
+	SentMessages    []SentMessagesItem
+	SchoolKeys      []string
+	SchoolGroups    map[string][]string
+	Schools         map[string]int32
+	SchoolIdsToName map[int32]string
+	Years           map[string]int32
+	Classes         map[string]int32
+	Students        map[StudentId]string
 }
 
 // MD5 hashes using md5 algorithm
@@ -420,13 +425,26 @@ func NewClientApi(config *Config) *ClientApi {
 	if err != nil {
 		log.Fatal("Prepareloginform: ", err)
 	}
+	schools := map[string]int32{}
+	schoolIdsToName := map[int32]string{}
+	schoolGroups := map[string][]string{}
+
 	scId := prepareLoginForm.Scid
 	for _, school := range prepareLoginForm.Schools {
+		schoolGroup := strings.Split(school.Name, "№")
+		schools[school.Name] = school.Id
+		schoolIdsToName[school.Id] = school.Name
+		groupName := strings.Trim(schoolGroup[0], " ")
+		schoolGroups[groupName] = append(schoolGroups[groupName], school.Name)
 		if school.Name == config.School {
 			scId = school.Id
-			break
 		}
 	}
+	schoolKeys := make([]string, 0, len(schools))
+	for k := range schools {
+		schoolKeys = append(schoolKeys, k)
+	}
+	sort.Strings(schoolKeys)
 	c := &ClientApi{
 		WebApi: webApi,
 		AuthParams: &AuthParams{
@@ -440,11 +458,15 @@ func NewClientApi(config *Config) *ClientApi {
 			Username:  config.Username,
 			Password:  config.Password,
 		},
-		BaseUrl:    config.Url,
-		HTTPClient: &httpClient,
-		Years:      map[string]int32{},
-		Classes:    map[string]int32{},
-		Students:   map[StudentId]string{},
+		BaseUrl:         config.Url,
+		HTTPClient:      &httpClient,
+		SchoolGroups:    schoolGroups,
+		SchoolKeys:      schoolKeys,
+		SchoolIdsToName: schoolIdsToName,
+		Schools:         schools,
+		Years:           map[string]int32{},
+		Classes:         map[string]int32{},
+		Students:        map[StudentId]string{},
 	}
 	if err := c.DoAuth(); err != nil {
 		log.Fatal("DoAuth: ", err)
