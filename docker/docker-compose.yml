@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   bot:
-    image: kmlebedev/netcitybot:v0.0.2
+    image: kmlebedev/netcitybot:v0.0.4
     environment:
       NETCITY_URL:         ${NETCITY_URL}
       NETCITY_SCHOOL:      ${NETCITY_SCHOOL}
@@ -11,6 +11,7 @@ services:
       NETCITY_YEAR_ID:     ${NETCITY_YEAR_ID}
       BOT_API_TOKEN:       ${BOT_API_TOKEN}
       BOT_CHAT_ID:         ${BOT_CHAT_ID}
+      NETCITY_URLS:        ${NETCITY_URLS}
       REDIS_ADDRESS:       redis://cache:6379
       REDIS_DB:            0
       REDIS_PASSWORD:      eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81

@@ -21,11 +21,12 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
+
+const NetCityAuthLoginType = 1
 
 type DateTime struct {
 	time.Time
@@ -44,6 +45,7 @@ func (c *DateTime) UnmarshalJSON(b []byte) (err error) {
 
 type Config struct {
 	Url      string
+	SchoolId int
 	School   string
 	Username string
 	Password string
@@ -77,21 +79,18 @@ type StudentId struct {
 }
 
 type ClientApi struct {
-	WebApi          *swagger.APIClient
-	BaseUrl         string
-	AuthParams      *AuthParams
-	HTTPClient      *http.Client
-	At              string
-	Ver             int
-	Uid             int
-	SentMessages    []SentMessagesItem
-	SchoolKeys      []string
-	SchoolGroups    map[string][]string
-	Schools         map[string]int32
-	SchoolIdsToName map[int32]string
-	Years           map[string]int32
-	Classes         map[string]int32
-	Students        map[StudentId]string
+	WebApi       *swagger.APIClient
+	BaseUrl      string
+	AuthParams   *AuthParams
+	HTTPClient   *http.Client
+	At           string
+	Ver          int
+	Uid          int
+	SentMessages []SentMessagesItem
+	Schools      map[string]int32
+	Years        map[string]int32
+	Classes      map[string]int32
+	Students     map[StudentId]string
 }
 
 // MD5 hashes using md5 algorithm
@@ -382,6 +381,7 @@ func (c *ClientApi) DoAuth() error {
 	}
 	loginData := LoginData{}
 	if err := c.sendRequest(req, &loginData); err != nil {
+		log.Warningf("fauled auth req url: %s, params: %+v", req.URL, params)
 		return err
 	}
 	if loginData.At == "" {
@@ -406,7 +406,7 @@ func (c *ClientApi) DoAuth() error {
 	return nil
 }
 
-func NewClientApi(config *Config) *ClientApi {
+func NewClientApi(config *Config) (*ClientApi, error) {
 	cookieJar, _ := cookiejar.New(nil)
 	httpClient := http.Client{
 		Timeout: time.Minute,
@@ -423,32 +423,21 @@ func NewClientApi(config *Config) *ClientApi {
 	})
 	prepareLoginForm, _, err := webApi.LoginApi.Prepareloginform(context.Background(), nil)
 	if err != nil {
-		log.Fatal("Prepareloginform: ", err)
+		return nil, fmt.Errorf("Prepareloginform: ", err)
 	}
 	schools := map[string]int32{}
-	schoolIdsToName := map[int32]string{}
-	schoolGroups := map[string][]string{}
-
-	scId := prepareLoginForm.Scid
+	scId := int32(config.SchoolId)
 	for _, school := range prepareLoginForm.Schools {
-		schoolGroup := strings.Split(school.Name, "№")
 		schools[school.Name] = school.Id
-		schoolIdsToName[school.Id] = school.Name
-		groupName := strings.Trim(schoolGroup[0], " ")
-		schoolGroups[groupName] = append(schoolGroups[groupName], school.Name)
-		if school.Name == config.School {
+		if school.Name != "" && school.Name == config.School {
 			scId = school.Id
 		}
 	}
-	schoolKeys := make([]string, 0, len(schools))
-	for k := range schools {
-		schoolKeys = append(schoolKeys, k)
-	}
-	sort.Strings(schoolKeys)
+
 	c := &ClientApi{
 		WebApi: webApi,
 		AuthParams: &AuthParams{
-			LoginType: 1,
+			LoginType: NetCityAuthLoginType,
 			Cid:       prepareLoginForm.Cid,
 			Scid:      scId,
 			Pid:       prepareLoginForm.Pid,
@@ -458,20 +447,17 @@ func NewClientApi(config *Config) *ClientApi {
 			Username:  config.Username,
 			Password:  config.Password,
 		},
-		BaseUrl:         config.Url,
-		HTTPClient:      &httpClient,
-		SchoolGroups:    schoolGroups,
-		SchoolKeys:      schoolKeys,
-		SchoolIdsToName: schoolIdsToName,
-		Schools:         schools,
-		Years:           map[string]int32{},
-		Classes:         map[string]int32{},
-		Students:        map[StudentId]string{},
+		BaseUrl:    config.Url,
+		HTTPClient: &httpClient,
+		Schools:    schools,
+		Years:      map[string]int32{},
+		Classes:    map[string]int32{},
+		Students:   map[StudentId]string{},
 	}
 	if err := c.DoAuth(); err != nil {
-		log.Fatal("DoAuth: ", err)
+		return nil, fmt.Errorf("DoAuth: %+v", err)
 	}
-	return c
+	return c, nil
 }
 
 func (c *ClientApi) GetAssignmentDetail(id int, studentId int) (*DiaryAssignmentDetail, error) {

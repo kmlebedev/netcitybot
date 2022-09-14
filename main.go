@@ -20,15 +20,14 @@ const (
 	EnvKeyNetCityUsername = "NETCITY_USERNAME"
 	EnvKeyNetCityPassword = "NETCITY_PASSWORD"
 	EnvKeyNetCityUrl      = "NETCITY_URL"         // https://netcity.eimc.ru"
-	EnvKeyNetStudentIds   = "NETCITY_STUDENT_IDS" // 76424,75468
+	EnvKeyNetCityUrls     = "NETCITY_URLS"        // https://netcity.eimc.ru,http//lync.schoolroo.ru"
+	EnvKeyNetStudentIds   = "NETCITY_STUDENT_IDS" // 71111,75555
 	EnvKeyYearId          = "NETCITY_YEAR_ID"
 	EnvKeySyncEnabled     = "NETCITY_SYNC_ENABLED"
 	EnvKeyRedisAddress    = "REDIS_ADDRESS"
 	EnvKeyRedisDB         = "REDIS_DB"
 	EnvKeyRedisPassword   = "REDIS_PASSWORD"
 )
-
-var api *netcity.ClientApi
 
 func IsSyncEnabled() bool {
 	if b, err := strconv.ParseBool(os.Getenv(EnvKeySyncEnabled)); err == nil {
@@ -37,11 +36,11 @@ func IsSyncEnabled() bool {
 	return false
 }
 
-func CurrentyYearId() int {
+func CurrentyYearId(netcityApi *netcity.ClientApi) int {
 	if yearId, err := strconv.Atoi(os.Getenv(EnvKeyYearId)); err == nil {
 		return yearId
 	}
-	if currentyYearId, err := api.GetCurrentyYearId(); err == nil {
+	if currentyYearId, err := netcityApi.GetCurrentyYearId(); err == nil {
 		return currentyYearId
 	} else {
 		log.Fatalf("netcity year id error: %+v", err)
@@ -58,7 +57,28 @@ func GetPullStudentIds() (pullStudentIds []int) {
 	return
 }
 
+func DoSync(netcityApi *netcity.ClientApi) {
+	if IsSyncEnabled() {
+		return
+	}
+	if err := netcityApi.GetClasses(); err != nil {
+		netcityApi.Logout()
+		log.Fatalf("netcity get classes: %+v", err)
+	}
+	if err := netcityApi.GetAllStudents(); err != nil || len(netcityApi.Students) == 0 {
+		netcityApi.Logout()
+		log.Fatalf("netcity get all students:%+v %+v", len(netcityApi.Students), err)
+	}
+	log.Infof("Sync years: %d, classes: %d, students: %d",
+		len(netcityApi.Years), len(netcityApi.Classes), len(netcityApi.Students))
+}
+
+func TrimUrl(url string) string {
+	return strings.TrimRight(strings.Trim(url, " "), "/")
+}
+
 func main() {
+	var netcityApi *netcity.ClientApi
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	done := make(chan bool, 1)
@@ -69,8 +89,8 @@ func main() {
 	}()
 	go func() {
 		sig := <-sigs
-		if api != nil {
-			api.Logout()
+		if netcityApi != nil {
+			netcityApi.Logout()
 		}
 		log.Info(sig)
 		done <- true
@@ -98,35 +118,43 @@ func main() {
 		}
 		rdb = redis.NewClient(&redisOpt)
 	}
-	api = netcity.NewClientApi(&netcity.Config{
-		Url:      os.Getenv(EnvKeyNetCityUrl),
-		School:   os.Getenv(EnvKeyNetCitySchool),
-		Username: os.Getenv(EnvKeyNetCityUsername),
-		Password: os.Getenv(EnvKeyNetCityPassword),
-	})
+	netCityUrl := TrimUrl(os.Getenv(EnvKeyNetCityUrl))
+	if netCityUrl != "" {
+		if netcityApi, err = netcity.NewClientApi(&netcity.Config{
+			Url:      netCityUrl,
+			School:   os.Getenv(EnvKeyNetCitySchool),
+			Username: os.Getenv(EnvKeyNetCityUsername),
+			Password: os.Getenv(EnvKeyNetCityPassword),
+		}); err != nil {
+			log.Warning(err)
+		}
 
+	}
 	botApi, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// bot.Debug = true
-	if IsSyncEnabled() {
-		if err := api.GetClasses(); err != nil {
-			api.Logout()
-			log.Fatalf("netcity get classes: %+v", err)
+
+	if netcityApi != nil {
+		pullStudentIds := GetPullStudentIds()
+		// sync assignments details with attachments to telegram
+		if chatId > 0 && len(pullStudentIds) > 0 {
+			assignments := map[int]netcity.DiaryAssignmentDetail{}
+			go netcityApi.LoopPullingOrder(60, botApi, chatId, CurrentyYearId(netcityApi), rdb, &assignments, &pullStudentIds)
 		}
-		if err := api.GetAllStudents(); err != nil || len(api.Students) == 0 {
-			api.Logout()
-			log.Fatalf("netcity get all students:%+v %+v", len(api.Students), err)
-		}
-		log.Infof("Sync years: %d, classes: %d, students: %d", len(api.Years), len(api.Classes), len(api.Students))
+		DoSync(netcityApi)
 	}
 
-	// sycn assignments details with attachments to telegram
-	pullStudentIds := GetPullStudentIds()
-	if chatId > 0 && len(pullStudentIds) > 0 {
-		assignments := map[int]netcity.DiaryAssignmentDetail{}
-		go api.LoopPullingOrder(60, botApi, chatId, CurrentyYearId(), rdb, &assignments, &pullStudentIds)
+	//botApi.Debug = true
+	netCityUrls := []string{}
+	if netCityUrl != "" {
+		netCityUrls = append(netCityUrls, netCityUrl)
 	}
-	bot.GetUpdates(botApi, api)
+	for _, url := range strings.Split(os.Getenv(EnvKeyNetCityUrls), ",") {
+		if url == "" {
+			continue
+		}
+		netCityUrls = append(netCityUrls, TrimUrl(url))
+	}
+	bot.GetUpdates(botApi, netcityApi, &netCityUrls)
 }

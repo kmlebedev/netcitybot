@@ -15,6 +15,7 @@ NETCITY_SCHOOL=МБОУ СОШ №1      # Образовательная орг
 NETCITY_USERNAME=ИвановИ        # Любой логин
 NETCITY_PASSWORD=123456         # Пароль
 NETCITY_YEAR_ID=                # Опционально, если клиент не в состоянии сам получить id
+NETCITY_URLS=http://192.168.1.1 # Бот подготовит данные для диалого со входом в дневник
 BOT_API_TOKEN=xxxxxxxxxxxxxxxxx # Как создать бота https://tlgrm.ru/docs/bots#kak-sozdat-bota
 BOT_CHAT_ID=170000000           # Чат класса для пересылки домашки                                                
 ```
@@ -39,6 +40,7 @@ NETCITY_SCHOOL=МБОУ СОШ №1
 NETCITY_USERNAME=ИвановИ
 NETCITY_PASSWORD=123456
 NETCITY_YEAR_ID=
+NETCITY_URLs=http://192.168.1.1,http://192.168.1.2
 BOT_API_TOKEN=xxxxxxxxxxxxxxxxx
 BOT_CHAT_ID=170000000" > .env_hobby
 ```
