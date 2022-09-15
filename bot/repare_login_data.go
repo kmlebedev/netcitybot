@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/http/cookiejar"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -94,6 +95,9 @@ func prepareLoginData() {
 				UlrId: int32(i),
 			})
 		}
+		sort.Slice(Schools, func(i, j int) bool {
+			return Schools[i].Num < Schools[j].Num
+		})
 	}
 	log.Infof("prepared login data urls: %d, cities: %d, schools: %d",
 		len(NetCityUrls), len(Cities), len(Schools))

@@ -229,22 +229,29 @@ func (c *ClientApi) DoReq(path string, payload *map[string]string) (*http.Respon
 }
 
 func (c *ClientApi) Logout() {
-	c.DoReq("/asp/MySettings/logout.asp", nil)
+	c.DoReq("/asp/logout.asp", nil)
 }
 
-func (c *ClientApi) GetMobilePhone() (mobilePhone int, err error) {
+func (c *ClientApi) GetContacts() (mobilePhone string, email string, err error) {
 	resp, err := c.DoReq("/asp/MySettings/MySettings.asp", nil)
 	if err != nil {
-		return 0, err
+		return
 	}
 	defer resp.Body.Close()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return 0, err
+		return
 	}
 	// <input type="text" class="form-control " data-inputmask="'mask': '+9-999-9999999'" name="MOBILEPHONE_MASK" size="25" maxlength="20" value="7912222222" OnChange="dataChanged()">
-	doc.Find(".form-control").FilterFunction(FilterAttrIsMobilePhone).Each(func(_ int, sel *goquery.Selection) {
-		mobilePhone, err = strconv.Atoi(sel.AttrOr("value", ""))
+	doc.Find(".form-control").Each(func(_ int, sel *goquery.Selection) {
+		if name, ok := sel.Attr("name"); ok {
+			switch name {
+			case "MOBILEPHONE_MASK":
+				mobilePhone = sel.AttrOr("value", "")
+			case "EMAIL":
+				email = sel.AttrOr("value", "")
+			}
+		}
 	})
 	return
 }

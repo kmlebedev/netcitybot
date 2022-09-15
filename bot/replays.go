@@ -3,6 +3,7 @@ package bot
 import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	log "github.com/sirupsen/logrus"
 	"sort"
 )
 
@@ -57,15 +58,16 @@ func ReplySelectSchool(msg *tgbotapi.MessageConfig, cityName string) {
 		if school.Num > 0 {
 			schoolNum = fmt.Sprintf("%d", school.Num)
 			kbButRow = append(kbButRow, tgbotapi.NewInlineKeyboardButtonData(schoolNum,
-				fmt.Sprintf("%s:%d", btTypeSchool, school.Id)))
+				fmt.Sprintf("%s:%d:%d", btTypeSchool, school.UlrId, school.Id)))
 			textSize += len(schoolNum)
+			log.Debugf("butten urlId %d, num: %s, id: %d, name %s", school.UlrId, schoolNum, school.Id, school.Name)
 		} else {
 			schoolsWithoutNum = append(schoolsWithoutNum, i)
 		}
 	}
 	for _, i := range schoolsWithoutNum {
 		kbButRow = append(kbButRow, tgbotapi.NewInlineKeyboardButtonData(Schools[i].Name,
-			fmt.Sprintf("%s:%d", btTypeSchool, Schools[i].Id)))
+			fmt.Sprintf("%s:%d:%d", btTypeSchool, Schools[i].UlrId, Schools[i].Id)))
 	}
 	rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
 	//log.Infof("append to %s button rows: %d", cityName, len(rpKeyboard.InlineKeyboard))

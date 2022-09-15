@@ -37,9 +37,9 @@ var (
 	Chatlogins = map[int64]*User{}
 )
 
-func GetSchool(id int32) *School {
+func GetSchool(urlId int32, id int32) *School {
 	for _, school := range Schools {
-		if school.Id == id {
+		if school.UlrId == urlId && school.Id == id {
 			return &school
 		}
 	}
@@ -59,10 +59,14 @@ func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfi
 		}
 
 	case btTypeSchool: // school:id Нажатие на кномку школы
-		schoolId, _ := strconv.Atoi(dataArr[1])
+		if len(dataArr) != 3 {
+			return
+		}
+		urlId, _ := strconv.Atoi(dataArr[1])
+		schoolId, _ := strconv.Atoi(dataArr[2])
 		if _, ok := Chatlogins[sendMsg.ChatID]; ok {
 			Chatlogins[sendMsg.ChatID].SchoolId = schoolId
-			school := GetSchool(int32(schoolId))
+			school := GetSchool(int32(urlId), int32(schoolId))
 			// Todo data race
 			if school != nil {
 				Chatlogins[sendMsg.ChatID].NetCityUrl = NetCityUrls[school.UlrId]
@@ -77,6 +81,14 @@ func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfi
 
 func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, api *netcity.ClientApi) {
 	switch updateMsg.Command() {
+	case "contacts":
+		if login, ok := Chatlogins[sendMsg.ChatID]; ok && login.NetCityApi != nil {
+			if mobilePhone, email, err := login.NetCityApi.GetContacts(); err == nil {
+				sendMsg.Text = fmt.Sprintf("Мобильный телефон: %s и email: %s", mobilePhone, email)
+			}
+		} else {
+			sendMsg.Text = "Вы не привязали дневник"
+		}
 	case "start":
 		ReplySelectCity(sendMsg)
 	case "hello":
@@ -86,6 +98,9 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 		ReplySelectCity(sendMsg)
 	case "logout":
 		sendMsg.Text = "logout"
+		if login, ok := Chatlogins[sendMsg.ChatID]; ok && login.NetCityApi != nil {
+			login.NetCityApi.Logout()
+		}
 	}
 }
 
