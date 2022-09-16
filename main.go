@@ -58,7 +58,7 @@ func GetPullStudentIds() (pullStudentIds []int) {
 }
 
 func DoSync(netcityApi *netcity.ClientApi) {
-	if IsSyncEnabled() {
+	if !IsSyncEnabled() {
 		return
 	}
 	if err := netcityApi.GetClasses(); err != nil {
@@ -98,12 +98,12 @@ func main() {
 
 	token := os.Getenv(EnvKeyTgbotToken)
 	if token == "" {
-		log.Fatal("bot api token not found in env key: %s", EnvKeyTgbotToken)
+		log.Fatalf("bot api token not found in env key: %s", EnvKeyTgbotToken)
 	}
 
 	chatId, err := strconv.ParseInt(os.Getenv(EnvKeyTgbotChatId), 10, 64)
 	if err != nil {
-		log.Warning("bot chat id error in env key %s: %s", EnvKeyTgbotChatId, err)
+		log.Warningf("bot chat id error in env key %s: %s", EnvKeyTgbotChatId, err)
 	}
 
 	redisOpt := redis.Options{
@@ -147,14 +147,19 @@ func main() {
 
 	//botApi.Debug = true
 	netCityUrls := []string{}
-	if netCityUrl != "" {
-		netCityUrls = append(netCityUrls, netCityUrl)
-	}
+	singelUrlFound := false
 	for _, url := range strings.Split(os.Getenv(EnvKeyNetCityUrls), ",") {
 		if url == "" {
 			continue
 		}
-		netCityUrls = append(netCityUrls, TrimUrl(url))
+		urlTrimed := TrimUrl(url)
+		if urlTrimed == netCityUrl {
+			singelUrlFound = true
+		}
+		netCityUrls = append(netCityUrls, urlTrimed)
+	}
+	if netCityUrl != "" && !singelUrlFound {
+		netCityUrls = append(netCityUrls, netCityUrl)
 	}
 	bot.GetUpdates(botApi, netcityApi, &netCityUrls)
 }
