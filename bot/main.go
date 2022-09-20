@@ -2,11 +2,15 @@ package bot
 
 import (
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -34,7 +38,11 @@ type User struct {
 }
 
 var (
-	Chatlogins = map[int64]*User{}
+	Chatlogins     = map[int64]*User{}
+	Rdb            *redis.Client
+	HttpPingClient = http.Client{
+		Timeout: 2 * time.Second,
+	}
 )
 
 func GetSchool(urlId int32, id int32) *School {
@@ -79,7 +87,7 @@ func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfi
 	}
 }
 
-func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, api *netcity.ClientApi) {
+func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig) {
 	switch updateMsg.Command() {
 	case "contacts":
 		if login, ok := Chatlogins[sendMsg.ChatID]; ok && login.NetCityApi != nil {
@@ -104,7 +112,7 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 	}
 }
 
-func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, api *netcity.ClientApi) {
+func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig) {
 	switch updateMsg.Text {
 	case "diary":
 		sendMsg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
@@ -160,11 +168,26 @@ func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, a
 	}
 }
 
-func GetUpdates(bot *tgbotapi.BotAPI, api *netcity.ClientApi, urls *[]string) {
+func Ping(url string) (int, error) {
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := HttpPingClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	resp.Body.Close()
+	return resp.StatusCode, nil
+}
+
+func GetUpdates(bot *tgbotapi.BotAPI, rdb *redis.Client, urls *[]string) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	NetCityUrls = *urls
-	prepareLoginData()
+	Rdb = rdb
+
+	prepareAllLoginData()
 
 	updates := bot.GetUpdatesChan(u)
 	for update := range updates {
@@ -179,10 +202,17 @@ func GetUpdates(bot *tgbotapi.BotAPI, api *netcity.ClientApi, urls *[]string) {
 			msg.Text = update.Message.Text
 			switch {
 			case update.Message.Command() != "":
-				ProcessCommand(update.Message, &msg, api)
+				ProcessCommand(update.Message, &msg)
 			case update.Message.Text != "":
-				ProcessText(update.Message, &msg, api)
-				//log.Infof("UpdateID %+v: %+v,", update.UpdateID, update.Message)
+				if newUrl, err := url.ParseRequestURI(update.Message.Text); err == nil {
+					if statusCode, err := Ping(newUrl.String()); err == nil && statusCode == http.StatusOK {
+						if _, ok := getUrlIdx(newUrl.String()); !ok {
+							prepareLoginData(-1, newUrl.String())
+						}
+					}
+				} else {
+					ProcessText(update.Message, &msg)
+				}
 			}
 		}
 		if msg.Text != "" {

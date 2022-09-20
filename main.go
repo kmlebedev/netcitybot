@@ -161,5 +161,5 @@ func main() {
 	if netCityUrl != "" && !singelUrlFound {
 		netCityUrls = append(netCityUrls, netCityUrl)
 	}
-	bot.GetUpdates(botApi, netcityApi, &netCityUrls)
+	bot.GetUpdates(botApi, rdb, &netCityUrls)
 }

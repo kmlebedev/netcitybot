@@ -97,7 +97,8 @@ Class | Method | HTTP request | Description
   * https://sg.lyceum130.ru/ (v5.0.60380.1220) - Кировский район
   * http://5.165.26.113  (v3.10.31549) - Чкаловский район
   * http://school23ekb.ru/ (v5.5.61111.35)- МАОУ СОШ № 23
-*  СО http://xn---66-eddggda1bzcdazfq.xn--p1ai/
+  * https://my.shkola79.ru/ (5.10.35574.782)- МАОУ СОШ № 79 
+* СО http://xn---66-eddggda1bzcdazfq.xn--p1ai/
   * http://31.28.113.161/ (v4.75.56652.961) - Красноуфимск 
   * http://94.190.51.157/ - Первоуральск
 * http://spo.cit73.ru/ (v3.5.0.97) - Самара 
