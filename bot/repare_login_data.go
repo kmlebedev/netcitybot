@@ -55,7 +55,7 @@ func prepareLoginData() {
 		ctx := context.Background()
 		prepareLoginForm, _, err := webApi.LoginApi.Prepareloginform(ctx, nil)
 		if err != nil || len(prepareLoginForm.Cities) == 0 || len(prepareLoginForm.Schools) == 0 {
-			log.Warningf("prepareLoginForm: %+v", err)
+			log.Warningf("prepareLoginForm url %s: %+v", url, err)
 			continue
 		}
 

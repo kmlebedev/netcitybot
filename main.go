@@ -77,6 +77,14 @@ func TrimUrl(url string) string {
 	return strings.TrimRight(strings.Trim(url, " "), "/")
 }
 
+func init() {
+	logLevel, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		logLevel = log.InfoLevel
+	}
+	log.SetLevel(logLevel)
+}
+
 func main() {
 	var netcityApi *netcity.ClientApi
 	sigs := make(chan os.Signal, 1)
@@ -138,7 +146,7 @@ func main() {
 	if netcityApi != nil {
 		pullStudentIds := GetPullStudentIds()
 		// sync assignments details with attachments to telegram
-		if chatId > 0 && len(pullStudentIds) > 0 {
+		if chatId != 0 && len(pullStudentIds) > 0 {
 			assignments := map[int]netcity.DiaryAssignmentDetail{}
 			go netcityApi.LoopPullingOrder(300, botApi, chatId, CurrentyYearId(netcityApi), rdb, &assignments, &pullStudentIds)
 		}

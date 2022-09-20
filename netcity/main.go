@@ -659,6 +659,7 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 							continue
 						}
 						(*assignments)[assignment.Id] = *assignmentDetail
+						log.Debugf("new assignmentDetail %+v", *assignmentDetail)
 						if isFirstRun {
 							continue
 						}
