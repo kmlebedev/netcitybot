@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -36,6 +37,13 @@ type User struct {
 var (
 	Chatlogins = map[int64]*User{}
 )
+
+func GetLoginWebApi(chatId int64) *netcity.ClientApi {
+	if _, ok := Chatlogins[chatId]; ok {
+		return Chatlogins[chatId].NetCityApi
+	}
+	return nil
+}
 
 func GetSchool(urlId int32, id int32) *School {
 	for _, school := range Schools {
@@ -79,7 +87,7 @@ func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfi
 	}
 }
 
-func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, api *netcity.ClientApi) {
+func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig) {
 	switch updateMsg.Command() {
 	case "contacts":
 		if login, ok := Chatlogins[sendMsg.ChatID]; ok && login.NetCityApi != nil {
@@ -104,7 +112,7 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 	}
 }
 
-func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, api *netcity.ClientApi) {
+func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig) {
 	switch updateMsg.Text {
 	case "diary":
 		sendMsg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
@@ -114,13 +122,33 @@ func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, a
 				tgbotapi.NewKeyboardButton("3"),
 			))
 	case "assignments":
-		sendMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonURL("1.com", "http://1.com"),
-				tgbotapi.NewInlineKeyboardButtonData("2", "2"),
-				tgbotapi.NewInlineKeyboardButtonData("3", "3"),
-			),
-		)
+		if api := GetLoginWebApi(updateMsg.Chat.ID); api != nil {
+			currentTime := time.Now()
+			weekStrat := currentTime.AddDate(0, 0, 0)
+			weekEnd := currentTime.AddDate(0, 0, 8)
+			assignments, err := api.GetAssignments(
+				api.Uid,
+				weekStrat.Format("2006-01-02"),
+				weekEnd.Format("2006-01-02"),
+				false,
+				false,
+				api.CurrentYearId,
+			)
+			if err != nil {
+				sendMsg.Text = fmt.Sprintf("Что то пошло не так: %+v", err)
+				log.Warningf("GetAssignments: %+v", err)
+			}
+			sendMsg.Text = ""
+			sendMsg.ParseMode = "markdown"
+			sendMsg.DisableWebPagePreview = true
+			for _, weekdays := range assignments.WeekDays {
+				for _, lesson := range weekdays.Lessons {
+					if len(lesson.Assignments) > 0 {
+						sendMsg.Text += fmt.Sprintf("%s %s %s\n", lesson.DayString(), lesson.SubjectName, lesson.Assignments[0].AssignmentName)
+					}
+				}
+			}
+		}
 	case "close":
 		sendMsg.Text = "done"
 		sendMsg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
@@ -179,9 +207,9 @@ func GetUpdates(bot *tgbotapi.BotAPI, api *netcity.ClientApi, urls *[]string) {
 			msg.Text = update.Message.Text
 			switch {
 			case update.Message.Command() != "":
-				ProcessCommand(update.Message, &msg, api)
+				ProcessCommand(update.Message, &msg)
 			case update.Message.Text != "":
-				ProcessText(update.Message, &msg, api)
+				ProcessText(update.Message, &msg)
 				//log.Infof("UpdateID %+v: %+v,", update.UpdateID, update.Message)
 			}
 		}
