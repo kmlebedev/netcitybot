@@ -14,8 +14,8 @@ jobs:
     runs-on: self-hosted
     strategy:
       matrix:
-        goos: [windows]
-        goarch: [amd64]
+        goos: [windows, linux, darwin]
+        goarch: [amd64, arm64]
 
     steps:
       - name: Check out code into the Go module directory
@@ -28,6 +28,7 @@ jobs:
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
           overwrite: true
+          pre_command: export CGO_ENABLED=0 && export GODEBUG=http2client=0
           binary_name: "netcitybot"
           ldflags: "-extldflags -static -s -w"
           asset_name: "netcitybot_${{ matrix.goos }}_${{ matrix.goarch }}"

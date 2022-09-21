@@ -10,6 +10,9 @@ build:
 dev: build
 	docker build --no-cache -t kmlebedev/netcitybot:dev -f docker/Dockerfile.local .
 
+dev_go_build: build
+	docker build --no-cache -t kmlebedev/netcitybot:dev -f docker/Dockerfile.local_go_build .
+
 go_build:
 	docker build --no-cache -t kmlebedev/netcitybot:local -f docker/Dockerfile.go_build .
 

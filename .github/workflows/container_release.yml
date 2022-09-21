@@ -1,0 +1,57 @@
+name: "docker: build release containers for normal volume"
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build-default-release-container:
+    runs-on: self-hosted
+
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+      -
+        name: Docker meta
+        id: docker_meta
+        uses: docker/metadata-action@69f6fc9d46f2f8bf0d5491e4aabe0bb8c6a4678a # v3
+        with:
+          images: |
+            kmlebedev/netcitybot
+          tags: |
+            type=ref,event=tag
+          flavor: |
+            latest=false
+          labels: |
+            org.opencontainers.image.title=netcitybot
+            org.opencontainers.image.description=NetCityBot is a API client and telegram bot for "Network City. Education" written in Golang
+            org.opencontainers.image.vendor=Konstantin Lebedev
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # v1
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # v1
+      -
+        name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      -
+        name: Build
+        uses: docker/build-push-action@c84f38281176d4c9cdb1626ffafcd6b3911b5d94 # v2
+        with:
+          context: ./docker
+          push: ${{ github.event_name != 'pull_request' }}
+          file: ./docker/Dockerfile.go_build
+          platforms: linux/amd64, linux/arm64
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
