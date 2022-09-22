@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-release-binaries_windows:
+  build-release-binaries:
     name: Build netcitybot
     permissions:
       contents: write  # for wangyoucao577/go-release-action to upload release assets

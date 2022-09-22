@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   bot:
-    image: kmlebedev/netcitybot:v0.0.4
+    image: kmlebedev/netcitybot:latest
     environment:
       NETCITY_URL:         ${NETCITY_URL}
       NETCITY_SCHOOL:      ${NETCITY_SCHOOL}
