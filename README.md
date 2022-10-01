@@ -119,6 +119,9 @@ Class | Method | HTTP request | Description
 * https://sgo.rso23.ru/ (5.9.62423.47) - Краснодар
 
 # Аналоги ботов
-* https://github.com/ser-ogonkov/dnevnik_bot
+* https://github.com/nm17/netschoolapi/tree/master/examples
 * https://github.com/nickname123456/BotNetSchool
 * https://github.com/kmlebedev/netcityEimcBot
+
+# Links
+* [AES Encryption/Decryption in GoLang](https://golangdocs.com/aes-encryption-decryption-in-golang)
