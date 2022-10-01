@@ -1,13 +1,14 @@
 FROM golang:1.19-alpine as builder
-ENV GOARCH=amd64
 
-COPY ./ /go/src/github.com/kmlebedev/netcitybot/
-WORKDIR /go/src/github.com/kmlebedev/netcitybot
+RUN apk add git
+RUN mkdir -p /go/src/github.com/kmlebedev/netcitybot && \
+    git clone --branch main https://github.com/kmlebedev/netcitybot /go/src/github.com/kmlebedev/netcitybot
 
-RUN go mod download && GOOS=linux CGO_ENABLED=0 go build -ldflags "-extldflags -static"
+RUN cd /go/src/github.com/kmlebedev/netcitybot && \
+    CGO_ENABLED=0 GODEBUG=http2client=0 go install -ldflags "-extldflags -static"
 
 FROM alpine AS final
-
-COPY ./netcitybot /usr/bin/
+LABEL author="Konstantin Lebedev"
+COPY --from=builder /go/bin/netcitybot /usr/bin/
 
 ENTRYPOINT ["/usr/bin/netcitybot"]

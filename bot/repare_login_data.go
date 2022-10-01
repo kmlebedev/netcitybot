@@ -5,6 +5,7 @@ import (
 	"github.com/kmlebedev/netcitybot/swagger"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"net/http/cookiejar"
 	"sort"
 	"strconv"
 	"strings"

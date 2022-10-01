@@ -79,18 +79,19 @@ type StudentId struct {
 }
 
 type ClientApi struct {
-	WebApi       *swagger.APIClient
-	BaseUrl      string
-	AuthParams   *AuthParams
-	HTTPClient   *http.Client
-	At           string
-	Ver          int
-	Uid          int
-	SentMessages []SentMessagesItem
-	Schools      map[string]int32
-	Years        map[string]int32
-	Classes      map[string]int32
-	Students     map[StudentId]string
+	WebApi        *swagger.APIClient
+	BaseUrl       string
+	AuthParams    *AuthParams
+	HTTPClient    *http.Client
+	At            string
+	Ver           int
+	Uid           int
+	CurrentYearId int
+	SentMessages  []SentMessagesItem
+	Schools       map[string]int32
+	Years         map[string]int32
+	Classes       map[string]int32
+	Students      map[StudentId]string
 }
 
 // MD5 hashes using md5 algorithm
@@ -410,6 +411,9 @@ func (c *ClientApi) DoAuth() error {
 		return err
 	}
 	c.Uid = diaryInit.Students[0].StudentId
+	if c.CurrentYearId, err = c.GetCurrentyYearId(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -659,6 +663,7 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 							continue
 						}
 						(*assignments)[assignment.Id] = *assignmentDetail
+						log.Debugf("new assignmentDetail %+v", *assignmentDetail)
 						if isFirstRun {
 							continue
 						}

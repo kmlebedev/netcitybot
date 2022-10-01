@@ -45,6 +45,13 @@ var (
 	}
 )
 
+func GetLoginWebApi(chatId int64) *netcity.ClientApi {
+	if _, ok := Chatlogins[chatId]; ok {
+		return Chatlogins[chatId].NetCityApi
+	}
+	return nil
+}
+
 func GetSchool(urlId int32, id int32) *School {
 	for _, school := range Schools {
 		if school.UlrId == urlId && school.Id == id {
@@ -122,13 +129,33 @@ func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig) {
 				tgbotapi.NewKeyboardButton("3"),
 			))
 	case "assignments":
-		sendMsg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonURL("1.com", "http://1.com"),
-				tgbotapi.NewInlineKeyboardButtonData("2", "2"),
-				tgbotapi.NewInlineKeyboardButtonData("3", "3"),
-			),
-		)
+		if api := GetLoginWebApi(updateMsg.Chat.ID); api != nil {
+			currentTime := time.Now()
+			weekStrat := currentTime.AddDate(0, 0, 0)
+			weekEnd := currentTime.AddDate(0, 0, 8)
+			assignments, err := api.GetAssignments(
+				api.Uid,
+				weekStrat.Format("2006-01-02"),
+				weekEnd.Format("2006-01-02"),
+				false,
+				false,
+				api.CurrentYearId,
+			)
+			if err != nil {
+				sendMsg.Text = fmt.Sprintf("Что то пошло не так: %+v", err)
+				log.Warningf("GetAssignments: %+v", err)
+			}
+			sendMsg.Text = ""
+			sendMsg.ParseMode = "markdown"
+			sendMsg.DisableWebPagePreview = true
+			for _, weekdays := range assignments.WeekDays {
+				for _, lesson := range weekdays.Lessons {
+					if len(lesson.Assignments) > 0 {
+						sendMsg.Text += fmt.Sprintf("%s %s %s\n", lesson.DayString(), lesson.SubjectName, lesson.Assignments[0].AssignmentName)
+					}
+				}
+			}
+		}
 	case "close":
 		sendMsg.Text = "done"
 		sendMsg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
@@ -212,6 +239,7 @@ func GetUpdates(bot *tgbotapi.BotAPI, rdb *redis.Client, urls *[]string) {
 					}
 				} else {
 					ProcessText(update.Message, &msg)
+					//log.Infof("UpdateID %+v: %+v,", update.UpdateID, update.Message)
 				}
 			}
 		}
