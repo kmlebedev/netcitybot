@@ -48,6 +48,8 @@ func prepareAllLoginData() {
 }
 
 func prepareLoginData(idx int64, url string) {
+	cookieJar, _ := cookiejar.New(nil)
+	HttpPrepareClient.Jar = cookieJar
 	webApi := swagger.NewAPIClient(&swagger.Configuration{
 		BasePath: url + "/webapi",
 		DefaultHeader: map[string]string{
