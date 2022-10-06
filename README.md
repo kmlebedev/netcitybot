@@ -106,6 +106,7 @@ Class | Method | HTTP request | Description
 *  СО http://xn---66-eddggda1bzcdazfq.xn--p1ai/
   * http://31.28.113.161/ (v4.75.56652.961) - Красноуфимск 
   * http://94.190.51.157/ - Первоуральск
+* https://sgo.cit73.ru/ (5.10.63012.189) - Ульяновская обл
 * http://spo.cit73.ru/ (v3.5.0.97) - Самара 
 * https://sgo.egov66.ru/ (v5.0.59442.919) - Нижний Тагил
 * https://net-school.cap.ru/ (v5.9.62423.47)
