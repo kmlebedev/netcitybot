@@ -4,6 +4,8 @@ import (
 	"github.com/go-redis/redis/v8"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/kmlebedev/netcitybot/bot"
+	"github.com/kmlebedev/netcitybot/config"
+	_ "github.com/kmlebedev/netcitybot/config"
 	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -13,31 +15,15 @@ import (
 	"syscall"
 )
 
-const (
-	EnvKeyTgbotToken      = "BOT_API_TOKEN"
-	EnvKeyTgbotChatId     = "BOT_CHAT_ID"    // -1001402812566
-	EnvKeyNetCitySchool   = "NETCITY_SCHOOL" // МБОУ СОШ №53
-	EnvKeyNetCityUsername = "NETCITY_USERNAME"
-	EnvKeyNetCityPassword = "NETCITY_PASSWORD"
-	EnvKeyNetCityUrl      = "NETCITY_URL"         // https://netcity.eimc.ru"
-	EnvKeyNetCityUrls     = "NETCITY_URLS"        // https://netcity.eimc.ru,http//lync.schoolroo.ru"
-	EnvKeyNetStudentIds   = "NETCITY_STUDENT_IDS" // 71111,75555
-	EnvKeyYearId          = "NETCITY_YEAR_ID"
-	EnvKeySyncEnabled     = "NETCITY_SYNC_ENABLED"
-	EnvKeyRedisAddress    = "REDIS_ADDRESS"
-	EnvKeyRedisDB         = "REDIS_DB"
-	EnvKeyRedisPassword   = "REDIS_PASSWORD"
-)
-
 func IsSyncEnabled() bool {
-	if b, err := strconv.ParseBool(os.Getenv(EnvKeySyncEnabled)); err == nil {
+	if b, err := strconv.ParseBool(os.Getenv(config.EnvKeySyncEnabled)); err == nil {
 		return b
 	}
 	return false
 }
 
 func CurrentyYearId(netcityApi *netcity.ClientApi) int {
-	if yearId, err := strconv.Atoi(os.Getenv(EnvKeyYearId)); err == nil {
+	if yearId, err := strconv.Atoi(os.Getenv(config.EnvKeyYearId)); err == nil {
 		return yearId
 	}
 	if currentyYearId, err := netcityApi.GetCurrentyYearId(); err == nil {
@@ -49,7 +35,7 @@ func CurrentyYearId(netcityApi *netcity.ClientApi) int {
 }
 
 func GetPullStudentIds() (pullStudentIds []int) {
-	for _, strId := range strings.Split(strings.TrimSpace(os.Getenv(EnvKeyNetStudentIds)), ",") {
+	for _, strId := range strings.Split(strings.TrimSpace(os.Getenv(config.EnvKeyNetStudentIds)), ",") {
 		if id, err := strconv.Atoi(strings.Trim(strId, " ")); err == nil {
 			pullStudentIds = append(pullStudentIds, id)
 		}
@@ -104,35 +90,35 @@ func main() {
 		done <- true
 	}()
 
-	token := os.Getenv(EnvKeyTgbotToken)
+	token := os.Getenv(config.EnvKeyTgbotToken)
 	if token == "" {
-		log.Fatalf("bot api token not found in env key: %s", EnvKeyTgbotToken)
+		log.Fatalf("bot api token not found in env key: %s", config.EnvKeyTgbotToken)
 	}
 
-	chatId, err := strconv.ParseInt(os.Getenv(EnvKeyTgbotChatId), 10, 64)
+	chatId, err := strconv.ParseInt(os.Getenv(config.EnvKeyTgbotChatId), 10, 64)
 	if err != nil {
-		log.Warningf("bot chat id error in env key %s: %s", EnvKeyTgbotChatId, err)
+		log.Warningf("bot chat id error in env key %s: %s", config.EnvKeyTgbotChatId, err)
 	}
 
 	redisOpt := redis.Options{
-		Addr:     os.Getenv(EnvKeyRedisAddress),
-		Password: os.Getenv(EnvKeyRedisPassword),
+		Addr:     os.Getenv(config.EnvKeyRedisAddress),
+		Password: os.Getenv(config.EnvKeyRedisPassword),
 	}
 
 	var rdb *redis.Client
 	if redisOpt.Password != "" {
-		if db, err := strconv.Atoi(os.Getenv(EnvKeyRedisDB)); err != nil {
+		if db, err := strconv.Atoi(os.Getenv(config.EnvKeyRedisDB)); err != nil {
 			redisOpt.DB = db
 		}
 		rdb = redis.NewClient(&redisOpt)
 	}
-	netCityUrl := TrimUrl(os.Getenv(EnvKeyNetCityUrl))
+	netCityUrl := TrimUrl(os.Getenv(config.EnvKeyNetCityUrl))
 	if netCityUrl != "" {
 		if netcityApi, err = netcity.NewClientApi(&netcity.Config{
 			Url:      netCityUrl,
-			School:   os.Getenv(EnvKeyNetCitySchool),
-			Username: os.Getenv(EnvKeyNetCityUsername),
-			Password: os.Getenv(EnvKeyNetCityPassword),
+			School:   os.Getenv(config.EnvKeyNetCitySchool),
+			Username: os.Getenv(config.EnvKeyNetCityUsername),
+			Password: os.Getenv(config.EnvKeyNetCityPassword),
 		}); err != nil {
 			log.Warning(err)
 		}
@@ -156,7 +142,7 @@ func main() {
 	//botApi.Debug = true
 	netCityUrls := []string{}
 	singelUrlFound := false
-	for _, url := range strings.Split(os.Getenv(EnvKeyNetCityUrls), ",") {
+	for _, url := range strings.Split(os.Getenv(config.EnvKeyNetCityUrls), ",") {
 		if url == "" {
 			continue
 		}
@@ -169,5 +155,5 @@ func main() {
 	if netCityUrl != "" && !singelUrlFound {
 		netCityUrls = append(netCityUrls, netCityUrl)
 	}
-	bot.GetUpdates(botApi, rdb, &netCityUrls)
+	bot.GetUpdates(botApi, &netCityUrls)
 }

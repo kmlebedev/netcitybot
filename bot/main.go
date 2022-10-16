@@ -52,15 +52,6 @@ func GetLoginWebApi(chatId int64) *netcity.ClientApi {
 	return nil
 }
 
-func GetSchool(urlId int32, id int32) *School {
-	for _, school := range Schools {
-		if school.UlrId == urlId && school.Id == id {
-			return &school
-		}
-	}
-	return nil
-}
-
 // Обработываем нажания кнопок
 func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfig) {
 	sendMsg.ChatID = update.CallbackQuery.Message.Chat.ID
@@ -208,7 +199,7 @@ func Ping(url string) (int, error) {
 	return resp.StatusCode, nil
 }
 
-func GetUpdates(bot *tgbotapi.BotAPI, rdb *redis.Client, urls *[]string) {
+func GetUpdates(bot *tgbotapi.BotAPI, urls *[]string) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	NetCityUrls = *urls
