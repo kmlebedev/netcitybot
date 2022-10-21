@@ -40,6 +40,9 @@ func CurrentyYearId(netcityApi *netcity.ClientApi) int {
 	if yearId, err := strconv.Atoi(os.Getenv(EnvKeyYearId)); err == nil {
 		return yearId
 	}
+	if netcityApi.CurrentYearId != 0 {
+		return netcityApi.CurrentYearId
+	}
 	if currentyYearId, err := netcityApi.GetCurrentyYearId(); err == nil {
 		return currentyYearId
 	} else {
@@ -142,7 +145,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	//botApi.Debug = true
 	if netcityApi != nil {
 		pullStudentIds := GetPullStudentIds()
 		// sync assignments details with attachments to telegram
@@ -153,7 +156,6 @@ func main() {
 		DoSync(netcityApi)
 	}
 
-	//botApi.Debug = true
 	netCityUrls := []string{}
 	singelUrlFound := false
 	for _, url := range strings.Split(os.Getenv(EnvKeyNetCityUrls), ",") {

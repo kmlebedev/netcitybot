@@ -2,14 +2,66 @@ openapi: 3.0.0
 servers:
   # Added by API Auto Mocking Plugin
   - description: SwaggerHub API Auto Mocking
-    url: https://virtserver.swaggerhub.com/LEBEDEVKM/NetSchool/1.0.0
-  - description: NetCity Yekateringurg
-    url: http://188.226.50.152/webapi
+    url: https://virtserver.swaggerhub.com/LEBEDEVKM/NetSchool/5.10.63221
 info:
-  version: "1.0.0"
+  version: "5.10.63221"
   title: NetSchool
   description: The API for the NetSchool irTech project
+security:
+  - bearerAuth: []
 paths:
+  /mysettings:
+    get:
+      tags:
+        - mysettings
+      description: returns my settings
+      operationId: mysettings
+      responses:
+        '200':
+          description: All my settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/mySettings'
+  /mysettings/yearlist:
+    get:
+      tags:
+        - mysettings
+      description: returns all years
+      operationId: yearlist
+      responses:
+        '200':
+          description: All the years
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/mySettingsYears'
+  /grade/assignment/types:
+    get:
+      tags:
+        - assignment
+      description: returns all assignment types
+      operationId: assignmentTypes
+      responses:
+        '200':
+          description: All the assignment types
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/assignmentTypes'
+  /student/diary/init:
+    get:
+      tags:
+        - student
+      description: returns strudent diary init data
+      operationId: studentDiaryInit
+      responses:
+        '200':
+          description: Init data the strudent diary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/studentDiaryInit'
   /student/diary:
     get:
       tags:
@@ -21,7 +73,7 @@ paths:
           required: true
           in: query
           schema:
-            type: string
+            type: integer
         - name: weekStart
           required: false
           in: query
@@ -56,12 +108,108 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Diary'
+  /student/diary/assigns/{assignId}:
+    get:
+      tags:
+        - diary
+      parameters:
+        - name: assignId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: studentId
+          required: true
+          in: query
+          schema:
+            type: integer
+      description: returns assign information
+      operationId: diaryAssignnDetails
+      responses:
+        '200':
+          description: Details about assign
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/diaryAssignDetails'
+  /auth/getdata:
+    post:
+      tags:
+        - login
+      description: returns all login data
+      operationId: getauthdata
+      security: []
+      responses:
+        '200':
+          description: All the login data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetAuthData'
+  /login:
+    post:
+      tags:
+        - login
+      description: returns all login data
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                LoginType:
+                  type: integer
+                  example: 1
+                cid:
+                  type: integer
+                  example: 2
+                sid:
+                  type: integer
+                  example: 66
+                pid:
+                  type: integer
+                  example: -1
+                cn:
+                  type: integer
+                  example: 3
+                sft:
+                  type: integer
+                  example: 2
+                scid:
+                  type: integer
+                  example: 22
+                UN:
+                  type: string
+                  example: "ИвановИИ"
+                PW:
+                  type: string
+                  example: "913c33"
+                lt:
+                  type: integer
+                  example: 728627461
+                pw2:
+                  type: string
+                  example: "913c329378a9055fed2d7cb971012ab9"
+                ver:
+                  type: integer
+                  example: 768250818
+      responses:
+        '200':
+          description: All the login data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Login'
   /logindata:
     get:
       tags:
         - login
       description: returns all login data
       operationId: logindata
+      security: []
       responses:
         '200':
           description: All the login data
@@ -75,6 +223,7 @@ paths:
         - login
       description: returns all prepareloginform
       operationId: prepareloginform
+      security: []
       parameters:
         - name: cacheVer
           required: false
@@ -94,6 +243,7 @@ paths:
         - login
       description: returns all prepareemloginform
       operationId: prepareemloginform
+      security: []
       parameters:
         - name: cacheVer
           required: false
@@ -108,7 +258,366 @@ paths:
               schema:
                 $ref: '#/components/schemas/PrepareEmLoginForm'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
+    GetAuthData:
+      type: object
+      properties:
+        lt:
+          type: string
+          example: "1073163840"
+        ver:
+          type: string
+          example: "768253229"
+        salt:
+          type: string
+          example: "1458933352"
+    Login:
+      type: object
+      properties:
+        at:
+          type: string
+          example: "00168638015429814024329375"
+        code:
+          type: string
+          example: null
+        timeOut:
+          type: integer
+          example: 900000
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        accountInfo:
+          type: object
+          properties:
+            activeToken:
+              type: string
+              example: null
+            secureActiveToken:
+              type: string
+            currentOrganization:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 22
+                name:
+                  type: string
+                  example: "МБОУ СОШ №19"
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 70111
+                name:
+                  type: string
+                  example: "Иванов И. И."
+            userRoles:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                  example: 70111
+                schoolId:
+                  type: integer
+                  example: 22
+                role:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      example: 2
+                    name:
+                      type: string
+                      example: "Родитель"
+            organizations:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 22
+                  name:
+                    type: string
+                    example: "МБОУ СОШ №19 (г. Екатеринбург) "
+            loginTime:
+              type: string
+              format: date
+              example: "2022-10-16T18:49:41.4794107"
+            active:
+              type: boolean
+              example: true
+            canLogin:
+              type: boolean
+              example: true
+            storeTokens:
+              type: boolean
+              example: true
+            accessToken:
+              type: string
+              example: "00168638015429814024329375"
+        tokenType:
+          type: string
+          example: "Bearer"
+        entryPoint:
+          type: string
+          example: "/asp/SecurityWarning.asp"
+        requestData:
+          type: object
+          properties:
+            warnType:
+              type: string
+              example: 1
+        errorMessage:
+          type: string
+          example: null
+    mySettingsYears:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: integer
+            example: 24
+          name:
+            type: string
+            example: "(*) 2011/2012"
+    mySettings:
+      type: object
+      properties:
+        userId:
+          type: integer
+          example: 0
+        firstName:
+          type: string
+          example: "Иван"
+        lastName:
+          type: string
+          example: "Иванов"
+        middleName:
+          type: string
+          example: "Иванович"
+        loginName:
+          type: string
+          example: "ИвановИИ"
+        birthDate:
+          type: string
+          format: date
+          example: "1988-02-14T00:00:00"
+        roles:
+          type: array
+          items:
+            type: string
+            example: "Parent"
+        schoolyearId:
+          type: integer
+          example: 0
+        windowsAccount:
+          type: string
+          example: ""
+        mobilePhone:
+          type: string
+          example: "79926155431"
+        preferedCom:
+          type: string
+          example: "C"
+        email:
+          type: string
+          example: "ivanov@mail.ru"
+        existsPhoto:
+          type: boolean
+          example: false
+        userSettings:
+          type: object
+          properties:
+            showMobilePhone:
+              type: boolean
+              example: true
+            defaultDesktop:
+              type: integer
+              example: 0
+            language:
+              type: string
+              example: "ru"
+            favoriteReports:
+              type: array
+              items:
+                type: string
+            passwordExpired:
+              type: integer
+              example: 0
+            recoveryAnswer:
+              type: string
+              example: "32ecd387055d5b01d8e7ac7fef380eb1"
+            recoveryQuestion:
+              type: string
+              example: "Девичья фамилия вашей матери"
+            theme:
+              type: integer
+              example: 0
+            userId:
+              type: integer
+              example: 70111
+            showNetSchoolApp:
+              type: boolean
+              example: true
+    diaryAssignDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5111111
+        assignmentName:
+          type: string
+          example: "Развитие речи. Сочинение-рассуждение по рассказу «Коллекционная вещь» Тибора Фишера"
+        activityName:
+          type: string
+          example: nil
+        problemName:
+          type: string
+          example: nil
+        subjectGroup:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 171111
+            name:
+              type: string
+              example: "5ж/Русский язык"
+        teacher:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 71111
+            name:
+              type: string
+              example: "Иванова Марья Ивановна"
+        productId:
+          type: integer
+          example: nil
+        isDeleted:
+          type: boolean
+          example: false
+        weight:
+          type: integer
+          example: 10
+        date:
+          type: string
+          format: date
+          example: "2021-12-15T00:00:00"
+        description:
+          type: string
+          example: "Задание по рядам - рассуждение по картине. Смотрите прикреплённый файл"
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 1111
+              name:
+                type: string
+                example: "Дз 5К.doc"
+              originalFileName:
+                type: string
+                example: "Дз 5К.doc"
+              description:
+                type: string
+                example: nil
+        contentElements:
+          type: array
+          example: nil
+          items:
+            type: object
+        codeContentElements:
+          type: array
+          example: nil
+          items:
+            type: object
+    studentDiaryInit:
+      type: object
+      properties:
+        students:
+          type: array
+          items:
+            type: object
+            properties:
+              studentId:
+                type: integer
+                example: 1111
+              nickName:
+                type: string
+                example: "Иванов Иван"
+              className:
+                type: object
+                example: nil
+              classId:
+                type: integer
+                example: 0
+              iupGrade:
+                type: integer
+                example: 0
+        currentStudentId:
+          type: integer
+          example: 1111
+        weekStart:
+          type: string
+          format: date
+          example: "2022-08-29T00:00:00"
+        yaClass:
+          type: boolean
+          example: false
+        yaClassAuthUrl:
+          type: string
+          example: "http://www.yaklass.ru/Account/NetSchoolGate?server=http%3a%2f%2fnetcity.ru%2f&ns_token=999999999999&ts=1662877853&nn=417563999&sg=7-JyisFQvEp_ayPSXfp_PpfCd0o1"
+        newDiskToken:
+          type: string
+          example: ""
+        newDiskWasRequest:
+          type: boolean
+          example: false
+        ttsuRl:
+          type: string
+          example: "http://NETCITY:80/"
+        externalUrl:
+          type: string
+          example: "http://netcity.ru/"
+        weight:
+          type: boolean
+          example: false
+        maxMark:
+          type: integer
+          example: 5
+        withLaAssigns:
+          type: boolean
+          example: true
+    assignmentTypes:
+      type: array
+      items:
+        type: object
+        properties:
+          abbr:
+            type: string
+            example: "ДЗ"
+          order:
+            type: integer
+            example: 15
+          id:
+            type: integer
+            example: 3
+          name:
+            type: string
+            example: "Домашнее задание"
     Mark:
       type: object
       properties:
@@ -330,21 +839,27 @@ components:
           type: string
         version:
           type: string
-        esiaLoginPage:
-          type: string
-        cacheVer:
-          type: string
         schoolLogin:
           type: boolean
         emLogin:
           type: boolean
-        windowsAuth:
+        esiaLogin:
           type: boolean
-        enableSms:
-          type: boolean
+        esiaLoginPage:
+          type: string
         esiaMainAuth:
           type: boolean
         esiaButton:
           type: boolean
         signatureLogin:
           type: boolean
+        cacheVer:
+          type: string
+        windowsAuth:
+          type: boolean
+        enableSms:
+          type: boolean
+        esaLogin:
+          type: boolean
+        esaLoginPage:
+          type: string
