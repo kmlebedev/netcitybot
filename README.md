@@ -58,17 +58,21 @@ docker-compose --env-file .env_hobby -f docker-compose.yml up -d
 ```
 
 # Доккументация по публичному Web API NetSchool
-*https://app.swaggerhub.com/apis/LEBEDEVKM/NetSchool/4.30.43656*
+All URIs are relative to *https://virtserver.swaggerhub.com/LEBEDEVKM/NetSchool/5.10.63221*
 
-Class | Method | HTTP request | Description
------------- | ------------- | ------------- | -------------
-*AssignmentApi* | [**AssignmentTypes**](docs/AssignmentApi.md#assignmenttypes) | **Get** /grade/assignment/types |
-*DiaryApi* | [**DiaryAssignnDetails**](docs/DiaryApi.md#diaryassignndetails) | **Get** /student/diary/assigns/{assignId} |
-*LoginApi* | [**Logindata**](docs/LoginApi.md#logindata) | **Get** /logindata |
-*LoginApi* | [**Prepareemloginform**](docs/LoginApi.md#prepareemloginform) | **Get** /prepareemloginform |
-*LoginApi* | [**Prepareloginform**](docs/LoginApi.md#prepareloginform) | **Get** /prepareloginform |
-*StudentApi* | [**StudentDiary**](docs/StudentApi.md#studentdiary) | **Get** /student/diary |
-*StudentApi* | [**StudentDiaryInit**](docs/StudentApi.md#studentdiaryinit) | **Get** /student/diary/init |
+Class | Method                                                                                     | HTTP request | Description
+------------ |--------------------------------------------------------------------------------------------| ------------- | -------------
+*AssignmentApi* | [**AssignmentTypes**](/kmlebedev/NetSchoolWebApi/go/docs/AssignmentApi.md#assignmenttypes) | **Get** /grade/assignment/types |
+*DiaryApi* | [**DiaryAssignnDetails**](/kmlebedev/NetSchoolWebApi/go/docs/DiaryApi.md#diaryassignndetails)                            | **Get** /student/diary/assigns/{assignId} |
+*LoginApi* | [**Getauthdata**](/kmlebedev/NetSchoolWebApi/go/docs/LoginApi.md#getauthdata)                                            | **Get** /auth/getdata |
+*LoginApi* | [**Login**](/kmlebedev/NetSchoolWebApi/go/docs/LoginApi.md#login)                                                        | **Post** /login |
+*LoginApi* | [**Logindata**](/kmlebedev/NetSchoolWebApi/go/docs/LoginApi.md#logindata)                                                | **Get** /logindata |
+*LoginApi* | [**Prepareemloginform**](/kmlebedev/NetSchoolWebApi/go/docs/LoginApi.md#prepareemloginform)                              | **Get** /prepareemloginform |
+*LoginApi* | [**Prepareloginform**](/kmlebedev/NetSchoolWebApi/go/docs/LoginApi.md#prepareloginform)                                  | **Get** /prepareloginform |
+*MysettingsApi* | [**Mysettings**](/kmlebedev/NetSchoolWebApi/go/docs/MysettingsApi.md#mysettings)                                         | **Get** /mysettings |
+*MysettingsApi* | [**Yearlist**](/kmlebedev/NetSchoolWebApi/go/docs/MysettingsApi.md#yearlist)                                             | **Get** /mysettings/yearlist |
+*StudentApi* | [**StudentDiary**](/kmlebedev/NetSchoolWebApi/go/docs/StudentApi.md#studentdiary)                                        | **Get** /student/diary |
+*StudentApi* | [**StudentDiaryInit**](/kmlebedev/NetSchoolWebApi/go/docs/StudentApi.md#studentdiaryinit)                                | **Get** /student/diary/init |
 
 # Todo Публичны бот для всех
 Но ничего не мешает расширить функционал, до общего для всех бота.  Пока план такой.
