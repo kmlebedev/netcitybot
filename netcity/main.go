@@ -12,7 +12,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-redis/redis/v8"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/kmlebedev/netSchoolWebApi/go"
+	swagger "github.com/kmlebedev/netSchoolWebApi/go"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
@@ -27,6 +27,10 @@ import (
 )
 
 const NetCityAuthLoginType = 1
+
+var (
+	ctx = context.Background()
+)
 
 type DateTime struct {
 	time.Time
@@ -92,6 +96,7 @@ type ClientApi struct {
 	Years         map[string]int32
 	Classes       map[string]int32
 	Students      map[StudentId]string
+	DoAuth        func() error
 }
 
 // MD5 hashes using md5 algorithm
@@ -376,7 +381,7 @@ func (c *ClientApi) GetCurrentyYearId() (currentYearId int, err error) {
 	return
 }
 
-func (c *ClientApi) DoAuth() error {
+func (c *ClientApi) DoAuthV4() error {
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/webapi/auth/getdata", c.BaseUrl), nil)
 	if err != nil {
 		return err
@@ -424,6 +429,28 @@ func (c *ClientApi) DoAuth() error {
 	return nil
 }
 
+func (c *ClientApi) DoAuthV5() error {
+	authData, _, err := c.WebApi.LoginApi.Getauthdata(ctx)
+	if err != nil {
+		return fmt.Errorf("GetAuthData: %+v", err)
+	}
+	md5Password := MD5(authData.Salt + MD5(c.AuthParams.Password))
+	authDataLt, _ := strconv.Atoi(authData.Lt)
+	authDataVer, _ := strconv.Atoi(authData.Ver)
+	login, _, err := c.WebApi.LoginApi.Login(ctx, c.AuthParams.LoginType,
+		c.AuthParams.Cid, c.AuthParams.Sid,
+		c.AuthParams.Pid, c.AuthParams.Cn, c.AuthParams.Sft,
+		c.AuthParams.Scid, c.AuthParams.Username, md5Password[:len(c.AuthParams.Password)],
+		int32(authDataLt),
+		md5Password, int32(authDataVer),
+	)
+	if err != nil {
+		return fmt.Errorf("loginData: %+v", err)
+	}
+	c.At = login.At
+	return nil
+}
+
 func NewClientApi(config *Config) (c *ClientApi, err error) {
 	cookieJar, _ := cookiejar.New(nil)
 	httpClient := http.Client{
@@ -439,7 +466,6 @@ func NewClientApi(config *Config) (c *ClientApi, err error) {
 		},
 		HTTPClient: &httpClient,
 	})
-	ctx := context.Background()
 	prepareLoginForm, _, err := webApi.LoginApi.Prepareloginform(context.Background(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Prepareloginform: ", err)
@@ -475,29 +501,18 @@ func NewClientApi(config *Config) (c *ClientApi, err error) {
 	}
 	loginData, _, err := webApi.LoginApi.Logindata(ctx)
 
+	c.DoAuth = c.DoAuthV5
+	isWebApiV4 := false
 	if err != nil || loginData.Version != "" || strings.Split(loginData.Version, ".")[0] != "5" {
-		if err := c.DoAuth(); err != nil {
-			return nil, fmt.Errorf("DoAuth: %+v", err)
-		}
+		c.DoAuth = c.DoAuthV4
+		isWebApiV4 = false
 	}
-	authData, _, err := webApi.LoginApi.Getauthdata(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("GetAuthData: %+v", err)
+	if err := c.DoAuth(); err != nil {
+		return nil, fmt.Errorf("DoAuth: %+v", err)
 	}
-	md5Password := MD5(authData.Salt + MD5(c.AuthParams.Password))
-	authDataLt, _ := strconv.Atoi(authData.Lt)
-	authDataVer, _ := strconv.Atoi(authData.Ver)
-	login, _, err := webApi.LoginApi.Login(ctx, c.AuthParams.LoginType,
-		c.AuthParams.Cid, c.AuthParams.Sid,
-		c.AuthParams.Pid, c.AuthParams.Cn, c.AuthParams.Sft,
-		c.AuthParams.Scid, c.AuthParams.Username, md5Password[:len(c.AuthParams.Password)],
-		int32(authDataLt),
-		md5Password, int32(authDataVer),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("loginData: %+v", err)
+	if isWebApiV4 {
+		return c, nil
 	}
-	c.At = login.At
 	years, _, err := webApi.MysettingsApi.Yearlist(ctx, c.At)
 	if err != nil {
 		return nil, fmt.Errorf("Yearlist: %+v", err)
