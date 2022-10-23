@@ -2,7 +2,7 @@ package bot
 
 import (
 	"context"
-	"github.com/kmlebedev/netcitybot/swagger"
+	"github.com/kmlebedev/netSchoolWebApi/go"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/http/cookiejar"

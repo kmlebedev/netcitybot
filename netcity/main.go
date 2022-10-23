@@ -12,7 +12,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-redis/redis/v8"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/kmlebedev/netcitybot/swagger"
+	"github.com/kmlebedev/netSchoolWebApi/go"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
@@ -123,6 +123,13 @@ func (a *AuthParams) GetUrlValues(authData *AuthData) url.Values {
 // https://netcity.eimc.ru/doc/%D1%81%D1%81%D1%8B%D0%BB%D0%BA%D0%B0%206%D0%93.docx?at=122637423789174617893268&VER=1606765770504&attachmentId=772789
 func (c *ClientApi) GetAttachmentUrl(a *Attachment) string {
 	return fmt.Sprintf("%s/doc/%s?at=%s&attachmentId=%d", c.BaseUrl, url.PathEscape(a.OriginalFileName), c.At, a.Id)
+}
+
+func (c *ClientApi) AT() string {
+	if c == nil {
+		return ""
+	}
+	return c.At
 }
 
 func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
@@ -417,7 +424,7 @@ func (c *ClientApi) DoAuth() error {
 	return nil
 }
 
-func NewClientApi(config *Config) (*ClientApi, error) {
+func NewClientApi(config *Config) (c *ClientApi, err error) {
 	cookieJar, _ := cookiejar.New(nil)
 	httpClient := http.Client{
 		Timeout: time.Minute,
@@ -432,6 +439,7 @@ func NewClientApi(config *Config) (*ClientApi, error) {
 		},
 		HTTPClient: &httpClient,
 	})
+	ctx := context.Background()
 	prepareLoginForm, _, err := webApi.LoginApi.Prepareloginform(context.Background(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Prepareloginform: ", err)
@@ -445,7 +453,7 @@ func NewClientApi(config *Config) (*ClientApi, error) {
 		}
 	}
 
-	c := &ClientApi{
+	c = &ClientApi{
 		WebApi: webApi,
 		AuthParams: &AuthParams{
 			LoginType: NetCityAuthLoginType,
@@ -465,8 +473,40 @@ func NewClientApi(config *Config) (*ClientApi, error) {
 		Classes:    map[string]int32{},
 		Students:   map[StudentId]string{},
 	}
-	if err := c.DoAuth(); err != nil {
-		return nil, fmt.Errorf("DoAuth: %+v", err)
+	loginData, _, err := webApi.LoginApi.Logindata(ctx)
+
+	if err != nil || loginData.Version != "" || strings.Split(loginData.Version, ".")[0] != "5" {
+		if err := c.DoAuth(); err != nil {
+			return nil, fmt.Errorf("DoAuth: %+v", err)
+		}
+	}
+	authData, _, err := webApi.LoginApi.Getauthdata(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("GetAuthData: %+v", err)
+	}
+	md5Password := MD5(authData.Salt + MD5(c.AuthParams.Password))
+	authDataLt, _ := strconv.Atoi(authData.Lt)
+	authDataVer, _ := strconv.Atoi(authData.Ver)
+	login, _, err := webApi.LoginApi.Login(ctx, c.AuthParams.LoginType,
+		c.AuthParams.Cid, c.AuthParams.Sid,
+		c.AuthParams.Pid, c.AuthParams.Cn, c.AuthParams.Sft,
+		c.AuthParams.Scid, c.AuthParams.Username, md5Password[:len(c.AuthParams.Password)],
+		int32(authDataLt),
+		md5Password, int32(authDataVer),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("loginData: %+v", err)
+	}
+	c.At = login.At
+	years, _, err := webApi.MysettingsApi.Yearlist(ctx, c.At)
+	if err != nil {
+		return nil, fmt.Errorf("Yearlist: %+v", err)
+	}
+	for i, year := range years {
+		if i == 0 {
+			c.CurrentYearId = int(year.Id)
+		}
+		c.Years[year.Name] = year.Id
 	}
 	return c, nil
 }
