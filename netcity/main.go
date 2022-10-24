@@ -661,13 +661,16 @@ func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 	if len(names) > 1 {
 		subjectName = strings.Join(names[1:], "/")
 	}
+	var teacher string
+	if len(a.Teachers) > 0 {
+		teacher = fmt.Sprintf(" (%s)", a.Teachers[0].Name)
+	}
 	return fmt.Sprintf(
-		"*Предмет*: %s\n"+
-			"*Учитель*: %s\n"+
+		"*Предмет*: %s%s\n"+
 			"*Срок сдачи*: %s\n%s"+
 			"%s",
 		subjectName,
-		a.Teacher.Name,
+		teacher,
 		a.Date.Format("2006-01-02"),
 		assignmentName,
 		description)

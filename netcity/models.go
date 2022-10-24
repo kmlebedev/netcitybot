@@ -61,10 +61,10 @@ type DiaryAssignmentDetail struct {
 		Id   int    `json:"id"`
 		Name string `json:"name"`
 	} `json:"subjectGroup"`
-	Teacher struct {
+	Teachers []struct {
 		Id   int    `json:"id"`
 		Name string `json:"name"`
-	} `json:"teacher"`
+	} `json:"teachers"`
 	AssignmentName string   `json:"assignmentName"` // тест ja/nein/doch
 	IsDeleted      bool     `json:"isDeleted"`
 	Date           DateTime `json:"date"`
