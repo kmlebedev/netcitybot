@@ -151,7 +151,7 @@ func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusUnauthorized {
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusInternalServerError {
 		if err = c.DoAuth(); err != nil {
 			resp, _ = c.HTTPClient.Do(req)
 		}
@@ -706,6 +706,10 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 					}
 					for _, assignment := range lesson.Assignments {
 						if assignment.AssignmentName == "" {
+							continue
+						}
+						// Ответ на уроке
+						if assignment.TypeId == 10 {
 							continue
 						}
 						assignmentDetailSaved, found := (*assignments)[assignment.Id]
