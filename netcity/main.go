@@ -650,7 +650,7 @@ func (a *DiaryAssignmentDetail) GetAttachmentsUrls(c *ClientApi) *map[string]str
 func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 	var assignmentName string
 	if !seeDetails[a.AssignmentName] {
-		assignmentName = fmt.Sprintf("*Домашнее задание*: %s\n", a.AssignmentName)
+		assignmentName = fmt.Sprintf("*Задание*: %s\n", a.AssignmentName)
 	}
 	var description string
 	if a.Description != "" {
@@ -666,12 +666,9 @@ func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 		teacher = fmt.Sprintf(" (%s)", a.Teachers[0].Name)
 	}
 	return fmt.Sprintf(
-		"*Предмет*: %s%s\n"+
-			"*Срок сдачи*: %s\n%s"+
-			"%s",
+		"*Предмет*: %s%s\n%s%s",
 		subjectName,
 		teacher,
-		a.Date.Format("2006-01-02"),
 		assignmentName,
 		description)
 }
@@ -715,18 +712,18 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 						if assignment.TypeId == 10 {
 							continue
 						}
-						assignmentDetailSaved, found := (*assignments)[assignment.Id]
 						assignmentDetail, err := c.GetAssignmentDetail(assignment.Id, studentId)
 						if err != nil {
 							log.Error(err)
 							continue
 						}
+						assignmentDetailSaved, found := (*assignments)[assignment.Id]
 						if found && reflect.DeepEqual(assignmentDetailSaved, *assignmentDetail) {
 							continue
 						}
 						(*assignments)[assignment.Id] = *assignmentDetail
 						log.Debugf("new assignmentDetail %+v", *assignmentDetail)
-						if isFirstRun {
+						if isFirstRun || time.Now().Unix() > assignmentDetail.Date.Unix() {
 							continue
 						}
 						msgId := c.botSentNotify(
