@@ -78,7 +78,7 @@ type DiaryAssignmentDetail struct {
 
 func (l *DiaryLesson) DayString() string {
 	return fmt.Sprintf("%sг. *Урок %d*(%s-%s)\n",
-		monday.Format(l.Day.Time, "*Monday*, 2 January 2006", monday.LocaleRuRU),
+		monday.Format(l.Day.Time, "*Monday*, 2 January", monday.LocaleRuRU),
 		l.Number, l.StartTime, l.EndTime,
 	)
 }

@@ -24,14 +24,6 @@ github.com/goodsign/monday v1.0.0 h1:Yyk/s/WgudMbAJN6UWSU5xAs8jtNewfqtVblAlw0yoc
 github.com/goodsign/monday v1.0.0/go.mod h1:r4T4breXpoFwspQNM+u2sLxJb2zyTaxVGqUfTBjWOu8=
 github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/go-cmp v0.5.8 h1:e6P7q2lk1O+qJJb4BtCQXlK8vWEO8V1ZeuEdJNOqZyg=
-github.com/kmlebedev/NetSchoolWebApi v0.0.0-20221021201429-36b1e3d6dcb8 h1:0uPS3BYwxYMPCG03/0QOoNIXZuN9vzSZ8yATCmJ3Nlc=
-github.com/kmlebedev/NetSchoolWebApi v0.0.0-20221021201429-36b1e3d6dcb8/go.mod h1:2P+4JC0bjGaZhyeKrPuOCJCFDAumn9voaOuFGuonu+8=
-github.com/kmlebedev/NetSchoolWebApi v0.0.0-20221021202003-2a8f262ae1a4 h1:DXDC7R3sqwxto1+EtE3NN1QHDsUH/mHWQeobtsT4Qr4=
-github.com/kmlebedev/NetSchoolWebApi v0.0.0-20221021202003-2a8f262ae1a4/go.mod h1:2P+4JC0bjGaZhyeKrPuOCJCFDAumn9voaOuFGuonu+8=
-github.com/kmlebedev/NetSchoolWebApi v0.0.0-20221021213014-5b24eed6549a h1:9wWnLqn+W9ho0nwFOwCnNnJaO8dUjfEG7PeVpjibjZA=
-github.com/kmlebedev/NetSchoolWebApi v0.0.0-20221021213014-5b24eed6549a/go.mod h1:2P+4JC0bjGaZhyeKrPuOCJCFDAumn9voaOuFGuonu+8=
-github.com/kmlebedev/netSchoolWebApi v0.0.0-20221021214321-13fa1bdfb6f3 h1:1CyQgKUtf97b2PELkMgSCS7QtsdLxxckM4OjVZecch0=
-github.com/kmlebedev/netSchoolWebApi v0.0.0-20221021214321-13fa1bdfb6f3/go.mod h1:i8vuhXxfVSKTM5d+2mlbpADim4hdoRA2QzxmZq0iKW0=
 github.com/kmlebedev/netSchoolWebApi v0.0.0-20221021225708-97a5d2f664f3 h1:vjIWPTITw5ZOSS+J6i0KkvQcbZywM0IONR181M38zWU=
 github.com/kmlebedev/netSchoolWebApi v0.0.0-20221021225708-97a5d2f664f3/go.mod h1:i8vuhXxfVSKTM5d+2mlbpADim4hdoRA2QzxmZq0iKW0=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
@@ -67,8 +59,8 @@ google.golang.org/appengine v1.6.7 h1:FZR1q0exgwxzPzp/aF+VccGrSfxfPpkBqjIIEq3ru6
 google.golang.org/appengine v1.6.7/go.mod h1:8WjMMxjGQR8xUklV/ARdw2HLXBOI7O7uCIDZVag1xfc=
 google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
-google.golang.org/protobuf v1.28.0 h1:w43yiav+6bVFTBQFZX0r7ipe9JQ1QsbMgHwbBziscLw=
-google.golang.org/protobuf v1.28.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
+google.golang.org/protobuf v1.28.1 h1:d0NfwRgPtno5B1Wa6L2DAG+KivqkdutMf1UhdNx175w=
+google.golang.org/protobuf v1.28.1/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 h1:uRGJdciOHaEIrze2W8Q3AKkepLTh2hOroT7a+7czfdQ=
 gopkg.in/yaml.v2 v2.4.0 h1:D8xgwECY7CYvx+Y2n4sBz93Jn9JRvxdiyyo8CTfuKaY=
