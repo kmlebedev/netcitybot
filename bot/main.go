@@ -5,6 +5,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -31,6 +32,8 @@ type User struct {
 	SentMsgLastId  int
 	NetCityConfig  *netcity.Config
 	NetCityApi     *netcity.ClientApi
+	Marks          map[int]netcity.AssignmentMark
+	TrackMarksCn   chan bool
 	Valid          bool
 }
 
@@ -87,7 +90,30 @@ func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfi
 	}
 }
 
-func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig) {
+func trackMarks(login *User) (string, error) {
+	var msg string
+	marks, err := login.NetCityApi.GetLessonAssignmentMarks()
+	if err != nil {
+		return msg, fmt.Errorf("Ошибка получения оценок: %+v", err)
+	}
+	if len(marks) == 0 {
+		return msg, nil
+	}
+	if isEq := reflect.DeepEqual(login.Marks, marks); isEq {
+		return msg, nil
+	}
+
+	for id, markNew := range marks {
+		markOld, found := login.Marks[id]
+		if found && reflect.DeepEqual(markNew, markOld) {
+			continue
+		}
+		msg += fmt.Sprintf("%+v\n", markNew)
+	}
+	return msg, nil
+}
+
+func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, bot *tgbotapi.BotAPI) {
 	switch updateMsg.Command() {
 	case "contacts":
 		if login, ok := Chatlogins[sendMsg.ChatID]; ok && login.NetCityApi != nil {
@@ -99,6 +125,43 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 		}
 	case "start":
 		ReplySelectCity(sendMsg)
+	case "track_marks":
+		login, ok := Chatlogins[sendMsg.ChatID]
+		if !ok || login.NetCityApi == nil {
+			sendMsg.Text = fmt.Sprintf("Войдите в дневник")
+			return
+		}
+		if login.Marks != nil {
+			sendMsg.Text = ""
+			if login.TrackMarksCn != nil {
+				login.TrackMarksCn <- true
+			}
+			return
+		}
+		login.Marks = make(map[int]netcity.AssignmentMark)
+		sendMsg.Text = fmt.Sprintf("Включено отслеживание отметок")
+		login.TrackMarksCn = make(chan bool)
+		go func(chatID int64, bot *tgbotapi.BotAPI, login *User) {
+			tick := time.Tick(time.Duration(5) * time.Minute)
+			for {
+				select {
+				case <-login.TrackMarksCn:
+					login.Marks = nil
+					if _, err := bot.Send(tgbotapi.NewMessage(chatID,
+						fmt.Sprintf("Отключено отслеживание отметок"))); err != nil {
+						log.Warningf("bot.Send: %+v", err)
+					}
+					return
+				case <-tick:
+					if msg, err := trackMarks(login); err == nil && msg != "" {
+						if _, err = bot.Send(tgbotapi.NewMessage(chatID, msg)); err != nil {
+							log.Warningf("bot.Send: %+v", err)
+						}
+					}
+				}
+			}
+		}(sendMsg.ChatID, bot, login)
+
 	case "hello":
 		sendMsg.Text = "И тебе привет."
 	case "login":
@@ -174,13 +237,13 @@ func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig) {
 					if netCityApi, err := netcity.NewClientApi(&netcityConfig); err == nil {
 						login.NetCityApi = netCityApi
 						sendMsg.Text = fmt.Sprintf("Данные верны")
+						// Todo под учеткой родителя необходиямо явно передавать id класса
 						if students, err := netCityApi.GetStudents(0); err == nil {
 							sendMsg.Text += fmt.Sprintf(" и в вашем класса %d учеников", len(*students))
 						}
 					} else {
-						//sendMsg.Text = fmt.Sprintf("Данные не верны или повторите попытку позже")
+						sendMsg.Text = fmt.Sprintf("Данные не верны или повторите попытку позже: %+v", err)
 						log.Warningf("BotLogin err: %+v", err)
-						sendMsg.Text = err.Error()
 					}
 				}
 			}
@@ -207,7 +270,7 @@ func GetUpdates(bot *tgbotapi.BotAPI, api *netcity.ClientApi, urls *[]string) {
 			msg.Text = update.Message.Text
 			switch {
 			case update.Message.Command() != "":
-				ProcessCommand(update.Message, &msg)
+				ProcessCommand(update.Message, &msg, bot)
 			case update.Message.Text != "":
 				ProcessText(update.Message, &msg)
 				//log.Infof("UpdateID %+v: %+v,", update.UpdateID, update.Message)

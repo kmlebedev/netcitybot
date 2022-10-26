@@ -99,6 +99,14 @@ type ClientApi struct {
 	DoAuth        func() error
 }
 
+type AssignmentMark struct {
+	day            DateTime
+	subjectName    string
+	mark           int
+	assignmentName string
+	assignmentId   int
+}
+
 // MD5 hashes using md5 algorithm
 func MD5(text string) string {
 	hasher := md5.New()
@@ -671,6 +679,37 @@ func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 		teacher,
 		assignmentName,
 		description)
+}
+
+func (c *ClientApi) GetLessonAssignmentMarks() (assignmentMarks map[int]AssignmentMark, err error) {
+	currentTime := time.Now()
+	assignments, err := c.GetAssignments(
+		c.Uid,
+		currentTime.AddDate(0, 0, -14).Format("2006-01-02"),
+		currentTime.AddDate(0, 0, 1).Format("2006-01-02"),
+		false,
+		false,
+		c.CurrentYearId,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("GetAssignments: %+v", err)
+	}
+	assignmentMarks = make(map[int]AssignmentMark)
+	for _, weekdays := range assignments.WeekDays {
+		for _, lesson := range weekdays.Lessons {
+			for _, assignment := range lesson.Assignments {
+				if assignment.Mark.Mark != 0 {
+					assignmentMarks[assignment.Id] = AssignmentMark{
+						day:            lesson.Day,
+						subjectName:    lesson.SubjectName,
+						mark:           assignment.Mark.Mark,
+						assignmentName: assignment.AssignmentName,
+					}
+				}
+			}
+		}
+	}
+	return assignmentMarks, nil
 }
 
 func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, yearId int, rdb *redis.Client, assignments *map[int]DiaryAssignmentDetail, studentIds *[]int) {
