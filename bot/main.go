@@ -110,6 +110,7 @@ func trackMarks(login *User) (string, error) {
 		}
 		msg += fmt.Sprintf("%+v\n", markNew)
 	}
+	login.Marks = marks
 	return msg, nil
 }
 
