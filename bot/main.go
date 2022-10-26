@@ -139,7 +139,12 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 			}
 			return
 		}
-		login.Marks = make(map[int]netcity.AssignmentMark)
+		var err error
+		login.Marks, err = login.NetCityApi.GetLessonAssignmentMarks()
+		if err != nil {
+			sendMsg.Text = fmt.Sprintf("Что то пошло не так: %+v", err)
+			return
+		}
 		sendMsg.Text = fmt.Sprintf("Включено отслеживание отметок")
 		login.TrackMarksCn = make(chan bool)
 		go func(chatID int64, bot *tgbotapi.BotAPI, login *User) {
