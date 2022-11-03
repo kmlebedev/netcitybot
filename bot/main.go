@@ -108,7 +108,12 @@ func trackMarks(login *User) (string, error) {
 		if found && reflect.DeepEqual(markNew, markOld) {
 			continue
 		}
-		msg += fmt.Sprintf("%+v\n", markNew)
+		if found && markOld.Mark != markNew.Mark {
+			msg += fmt.Sprintf("Оценка исправлена c %d на *%d* ", markOld.Mark, markNew.Mark)
+		} else {
+			msg += fmt.Sprintf("Оценка *%d* ", markNew.Mark)
+		}
+		msg += fmt.Sprintf("по предмету: %s, по теме: %s, за: %s\n", markNew.SubjectName, markNew.AssignmentName, markNew.Day.Format("02 Jan"))
 	}
 	login.Marks = marks
 	return msg, nil

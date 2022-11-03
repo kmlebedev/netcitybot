@@ -100,11 +100,11 @@ type ClientApi struct {
 }
 
 type AssignmentMark struct {
-	day            DateTime
-	subjectName    string
-	mark           int
-	assignmentName string
-	assignmentId   int
+	Day            DateTime
+	SubjectName    string
+	Mark           int
+	AssignmentName string
+	AssignmentId   int
 }
 
 // MD5 hashes using md5 algorithm
@@ -700,10 +700,10 @@ func (c *ClientApi) GetLessonAssignmentMarks() (assignmentMarks map[int]Assignme
 			for _, assignment := range lesson.Assignments {
 				if assignment.Mark.Mark != 0 {
 					assignmentMarks[assignment.Id] = AssignmentMark{
-						day:            lesson.Day,
-						subjectName:    lesson.SubjectName,
-						mark:           assignment.Mark.Mark,
-						assignmentName: assignment.AssignmentName,
+						Day:            lesson.Day,
+						SubjectName:    lesson.SubjectName,
+						Mark:           assignment.Mark.Mark,
+						AssignmentName: assignment.AssignmentName,
 					}
 				}
 			}
