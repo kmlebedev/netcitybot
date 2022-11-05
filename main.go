@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"github.com/go-redis/redis/v8"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/kmlebedev/netcitybot/bot"
+	. "github.com/kmlebedev/netcitybot/bot/constants"
+	"github.com/kmlebedev/netcitybot/bot/storage"
+	storageMemory "github.com/kmlebedev/netcitybot/bot/storage/memory"
+	_ "github.com/kmlebedev/netcitybot/bot/storage/redis"
 	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -13,20 +18,13 @@ import (
 	"syscall"
 )
 
-const (
-	EnvKeyTgbotToken      = "BOT_API_TOKEN"
-	EnvKeyTgbotChatId     = "BOT_CHAT_ID"    // -1001402812566
-	EnvKeyNetCitySchool   = "NETCITY_SCHOOL" // МБОУ СОШ №53
-	EnvKeyNetCityUsername = "NETCITY_USERNAME"
-	EnvKeyNetCityPassword = "NETCITY_PASSWORD"
-	EnvKeyNetCityUrl      = "NETCITY_URL"         // https://netcity.eimc.ru"
-	EnvKeyNetCityUrls     = "NETCITY_URLS"        // https://netcity.eimc.ru,http//lync.schoolroo.ru"
-	EnvKeyNetStudentIds   = "NETCITY_STUDENT_IDS" // 71111,75555
-	EnvKeyYearId          = "NETCITY_YEAR_ID"
-	EnvKeySyncEnabled     = "NETCITY_SYNC_ENABLED"
-	EnvKeyRedisAddress    = "REDIS_ADDRESS"
-	EnvKeyRedisDB         = "REDIS_DB"
-	EnvKeyRedisPassword   = "REDIS_PASSWORD"
+var (
+	ChatLogins  storage.StorageMap
+	netcityApi  *netcity.ClientApi
+	netcityUrls []string
+	botApi      *tgbotapi.BotAPI
+	botApiToken string
+	botChatId   int64
 )
 
 func IsSyncEnabled() bool {
@@ -86,10 +84,7 @@ func init() {
 		logLevel = log.InfoLevel
 	}
 	log.SetLevel(logLevel)
-}
 
-func main() {
-	var netcityApi *netcity.ClientApi
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	done := make(chan bool, 1)
@@ -107,69 +102,77 @@ func main() {
 		done <- true
 	}()
 
-	token := os.Getenv(EnvKeyTgbotToken)
-	if token == "" {
+	botApiToken = os.Getenv(EnvKeyTgbotToken)
+	if botApiToken == "" {
 		log.Fatalf("bot api token not found in env key: %s", EnvKeyTgbotToken)
 	}
 
-	chatId, err := strconv.ParseInt(os.Getenv(EnvKeyTgbotChatId), 10, 64)
+	botChatId, err = strconv.ParseInt(os.Getenv(EnvKeyTgbotChatId), 10, 64)
 	if err != nil {
 		log.Warningf("bot chat id error in env key %s: %s", EnvKeyTgbotChatId, err)
 	}
-
+	ChatLogins = storageMemory.NewStorageMem()
 	redisOpt := redis.Options{
 		Addr:     os.Getenv(EnvKeyRedisAddress),
 		Password: os.Getenv(EnvKeyRedisPassword),
 	}
-
-	var rdb *redis.Client
 	if redisOpt.Password != "" {
 		if db, err := strconv.Atoi(os.Getenv(EnvKeyRedisDB)); err != nil {
 			redisOpt.DB = db
 		}
-		rdb = redis.NewClient(&redisOpt)
+		rdb := redis.NewClient(&redisOpt)
+		if _, err := rdb.Ping(context.Background()).Result(); err != nil {
+			log.Fatalf("Redis Db ping: %v", err)
+		}
+		//ChatLogins = storageRedis.NewStorageRdb(rdb)
 	}
-	netCityUrl := TrimUrl(os.Getenv(EnvKeyNetCityUrl))
-	if netCityUrl != "" {
+
+	netcityUrl := TrimUrl(os.Getenv(EnvKeyNetCityUrl))
+	if netcityUrl != "" {
 		if netcityApi, err = netcity.NewClientApi(&netcity.Config{
-			Url:      netCityUrl,
+			Url:      netcityUrl,
 			School:   os.Getenv(EnvKeyNetCitySchool),
 			Username: os.Getenv(EnvKeyNetCityUsername),
 			Password: os.Getenv(EnvKeyNetCityPassword),
 		}); err != nil {
 			log.Warning(err)
 		}
-
-	}
-	botApi, err := tgbotapi.NewBotAPI(token)
-	if err != nil {
-		log.Fatal(err)
-	}
-	//botApi.Debug = true
-	if netcityApi != nil {
-		pullStudentIds := GetPullStudentIds()
-		// sync assignments details with attachments to telegram
-		if chatId != 0 && len(pullStudentIds) > 0 {
-			assignments := map[int]netcity.DiaryAssignmentDetail{}
-			go netcityApi.LoopPullingOrder(300, botApi, chatId, CurrentyYearId(netcityApi), rdb, &assignments, &pullStudentIds)
-		}
-		DoSync(netcityApi)
 	}
 
-	netCityUrls := []string{}
 	singelUrlFound := false
 	for _, url := range strings.Split(os.Getenv(EnvKeyNetCityUrls), ",") {
 		if url == "" {
 			continue
 		}
 		urlTrimed := TrimUrl(url)
-		if urlTrimed == netCityUrl {
+		if urlTrimed == netcityUrl {
 			singelUrlFound = true
 		}
-		netCityUrls = append(netCityUrls, urlTrimed)
+		netcityUrls = append(netcityUrls, urlTrimed)
 	}
-	if netCityUrl != "" && !singelUrlFound {
-		netCityUrls = append(netCityUrls, netCityUrl)
+	if netcityUrl != "" && !singelUrlFound {
+		netcityUrls = append(netcityUrls, netcityUrl)
 	}
-	bot.GetUpdates(botApi, netcityApi, &netCityUrls)
+
+	botApi, err = tgbotapi.NewBotAPI(botApiToken)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func main() {
+	//botApi.Debug = true
+	// Only sync assignments to telegram chat
+	if netcityApi != nil {
+		pullStudentIds := GetPullStudentIds()
+		// sync assignments details with attachments to telegram
+		if botChatId != 0 && len(pullStudentIds) > 0 {
+			assignments := map[int]netcity.DiaryAssignmentDetail{}
+			go netcityApi.LoopPullingOrder(300, botApi, botChatId, CurrentyYearId(netcityApi), &assignments, &pullStudentIds)
+		}
+		DoSync(netcityApi)
+	}
+
+	// Process message
+	bot.GetUpdates(botApi, &netcityUrls, ChatLogins)
 }

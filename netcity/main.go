@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-redis/redis/v8"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	swagger "github.com/kmlebedev/netSchoolWebApi/go"
 	log "github.com/sirupsen/logrus"
@@ -712,7 +711,7 @@ func (c *ClientApi) GetLessonAssignmentMarks() (assignmentMarks map[int]Assignme
 	return assignmentMarks, nil
 }
 
-func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, yearId int, rdb *redis.Client, assignments *map[int]DiaryAssignmentDetail, studentIds *[]int) {
+func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, yearId int, assignments *map[int]DiaryAssignmentDetail, studentIds *[]int) {
 	log.Infof("LoopPullingOrder chatId: %+v, yearId: %+v", chatId, yearId)
 	if intervalSeconds == 0 || bot == nil || chatId == 0 || yearId == 0 || studentIds == nil || len(*studentIds) == 0 {
 		return

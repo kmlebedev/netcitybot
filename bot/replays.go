@@ -3,6 +3,7 @@ package bot
 import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	. "github.com/kmlebedev/netcitybot/bot/constants"
 	log "github.com/sirupsen/logrus"
 	"sort"
 )
@@ -24,13 +25,13 @@ func ReplySelectCity(msg *tgbotapi.MessageConfig) {
 	}
 	sort.Strings(cityNames)
 	for _, cityName := range cityNames {
-		if textSize > btRowMaxSize {
+		if textSize > BtRowMaxSize {
 			rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
 			kbButRow = tgbotapi.NewInlineKeyboardRow()
 			textSize = 0
 		}
 		kbButRow = append(kbButRow, tgbotapi.NewInlineKeyboardButtonData(cityName,
-			fmt.Sprintf("%s:%s", btTypeCity, cityName)))
+			fmt.Sprintf("%s:%s", BtTypeCity, cityName)))
 		textSize += len(cityName)
 	}
 	rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
@@ -48,7 +49,7 @@ func ReplySelectSchool(msg *tgbotapi.MessageConfig, cityName string) {
 		if school.City != cityName {
 			continue
 		}
-		if textSize > btRowMaxSize || len(kbButRow) >= 8 {
+		if textSize > BtRowMaxSize || len(kbButRow) >= 8 {
 			rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
 			//log.Infof("append to %s buttons: %d", cityName, len(kbButRow))
 			kbButRow = tgbotapi.NewInlineKeyboardRow()
@@ -58,7 +59,7 @@ func ReplySelectSchool(msg *tgbotapi.MessageConfig, cityName string) {
 		if school.Num > 0 {
 			schoolNum = fmt.Sprintf("%d", school.Num)
 			kbButRow = append(kbButRow, tgbotapi.NewInlineKeyboardButtonData(schoolNum,
-				fmt.Sprintf("%s:%d:%d", btTypeSchool, school.UlrId, school.Id)))
+				fmt.Sprintf("%s:%d:%d", BtTypeSchool, school.UlrId, school.Id)))
 			textSize += len(schoolNum)
 			log.Debugf("butten urlId %d, num: %s, id: %d, name %s", school.UlrId, schoolNum, school.Id, school.Name)
 		} else {
@@ -67,7 +68,7 @@ func ReplySelectSchool(msg *tgbotapi.MessageConfig, cityName string) {
 	}
 	for _, i := range schoolsWithoutNum {
 		kbButRow = append(kbButRow, tgbotapi.NewInlineKeyboardButtonData(Schools[i].Name,
-			fmt.Sprintf("%s:%d:%d", btTypeSchool, Schools[i].UlrId, Schools[i].Id)))
+			fmt.Sprintf("%s:%d:%d", BtTypeSchool, Schools[i].UlrId, Schools[i].Id)))
 	}
 	rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
 	//log.Infof("append to %s button rows: %d", cityName, len(rpKeyboard.InlineKeyboard))
