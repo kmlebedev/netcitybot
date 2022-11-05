@@ -39,8 +39,8 @@ func (s *StorageMem) UpdateUserLoginData(chatId int64, newUserLoginData UserLogi
 			if newUserLoginData.NetCityUrl != "" {
 				d.NetCityUrl = newUserLoginData.NetCityUrl
 			}
-			if newUserLoginData.Login != "" {
-				d.Login = newUserLoginData.Login
+			if newUserLoginData.UserName != "" {
+				d.UserName = newUserLoginData.UserName
 			}
 			if newUserLoginData.Password != "" {
 				d.Password = newUserLoginData.Password
@@ -75,8 +75,8 @@ func (s *StorageMem) GetNetCityUrl(chatId int64) string {
 	return s.GetUserLoginData(chatId).NetCityUrl
 }
 
-func (s *StorageMem) GetName(chatId int64) string {
-	return s.GetUserLoginData(chatId).Login
+func (s *StorageMem) GetUserName(chatId int64) string {
+	return s.GetUserLoginData(chatId).UserName
 }
 
 func (s *StorageMem) GetPassword(chatId int64) string {
@@ -103,8 +103,8 @@ func (s *StorageMem) SetNetCityUrl(chatId int64, netCityUrl string) {
 	s.UpdateUserLoginData(chatId, UserLoginData{NetCityUrl: netCityUrl})
 }
 
-func (s *StorageMem) SetName(chatId int64, login string) {
-	s.UpdateUserLoginData(chatId, UserLoginData{Login: login})
+func (s *StorageMem) SetUserName(chatId int64, login string) {
+	s.UpdateUserLoginData(chatId, UserLoginData{UserName: login})
 }
 
 func (s *StorageMem) SetPassword(chatId int64, password string) {

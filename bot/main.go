@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
+	"sync"
 )
 
 type User struct {
@@ -30,13 +31,50 @@ type User struct {
 }
 
 var (
-	ChatUsers  = make(map[int64]*User)
-	ChatLogins storage.StorageMap
+	ChatUsers     = make(map[int64]*User)
+	ChatNetCityDb storage.StorageMap
+	ChatUsersLock = sync.RWMutex{}
 )
 
+func GetChatUser(chatId int64) *User {
+	ChatUsersLock.RLock()
+	_, ok := ChatUsers[chatId]
+	ChatUsersLock.RUnlock()
+	if ok {
+		return ChatUsers[chatId]
+	}
+	return NewChatUser(chatId)
+}
+
+func NewChatUser(chatId int64) *User {
+	ChatUsersLock.Lock()
+	defer ChatUsersLock.Unlock()
+	ChatUsers[chatId] = &User{}
+	return ChatUsers[chatId]
+}
+
 func GetLoginWebApi(chatId int64) *netcity.ClientApi {
-	if _, ok := ChatUsers[chatId]; ok {
-		return ChatUsers[chatId].NetCityApi
+	user := GetChatUser(chatId)
+	if user == nil {
+		return nil
+	}
+	if user.NetCityApi != nil {
+		return user.NetCityApi
+	}
+	if userLoginData := ChatNetCityDb.GetUserLoginData(chatId); userLoginData != nil {
+		clientApi, err := netcity.NewClientApi(&netcity.Config{
+			Url:      userLoginData.NetCityUrl,
+			SchoolId: userLoginData.SchoolId,
+			School:   userLoginData.SchoolName,
+			Username: userLoginData.UserName,
+			Password: userLoginData.Password,
+		})
+		if err != nil {
+			log.Errorf("netcity.NewClientApi: %v", err)
+			return nil
+		}
+		user.NetCityApi = clientApi
+		return clientApi
 	}
 	return nil
 }
@@ -79,11 +117,11 @@ func trackMarks(login *User) (string, error) {
 	return msg, nil
 }
 
-func GetUpdates(bot *tgbotapi.BotAPI, urls *[]string, chatLogins storage.StorageMap) {
+func GetUpdates(bot *tgbotapi.BotAPI, urls *[]string, chatNetCityDb storage.StorageMap) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	NetCityUrls = *urls
-	ChatLogins = chatLogins
+	ChatNetCityDb = chatNetCityDb
 	prepareLoginData()
 
 	updates := bot.GetUpdatesChan(u)
@@ -101,8 +139,17 @@ func GetUpdates(bot *tgbotapi.BotAPI, urls *[]string, chatLogins storage.Storage
 			case update.Message.Command() != "":
 				ProcessCommand(update.Message, &msg, bot)
 			case update.Message.Text != "":
-				ProcessText(update.Message, &msg)
-				//log.Infof("UpdateID %+v: %+v,", update.UpdateID, update.Message)
+				user := GetChatUser(update.Message.Chat.ID)
+				netCityApi := GetLoginWebApi(update.Message.Chat.ID)
+				if netCityApi == nil {
+					msg.Text = "Вы не вошли в дневник"
+					return
+				}
+				if update.Message.Chat.IsPrivate() {
+					ProcessTextPrivate(update.Message, &msg, user, netCityApi)
+				} else {
+					ProcessText(update.Message, &msg, user, netCityApi)
+				}
 			}
 		}
 		if msg.Text != "" {
@@ -110,15 +157,16 @@ func GetUpdates(bot *tgbotapi.BotAPI, urls *[]string, chatLogins storage.Storage
 			if err != nil {
 				log.Error(err)
 			}
-			if _, ok := ChatUsers[sentMsg.Chat.ID]; ok {
-				ChatUsers[sentMsg.Chat.ID].SentMsgLastId = sentMsg.MessageID
+			if user := GetChatUser(sentMsg.Chat.ID); user != nil {
+				user.SentMsgLastId = sentMsg.MessageID
 				if strings.HasPrefix(sentMsg.Text, MsgReqLogin) {
-					ChatUsers[sentMsg.Chat.ID].ReqNameMsgId = sentMsg.MessageID
+					user.ReqNameMsgId = sentMsg.MessageID
 				} else if strings.HasPrefix(sentMsg.Text, MsgReqPasswd) {
-					ChatUsers[sentMsg.Chat.ID].ReqPasswdMsgId = sentMsg.MessageID
+					user.ReqPasswdMsgId = sentMsg.MessageID
 				}
 			} else {
-				ChatUsers[sentMsg.Chat.ID] = &User{SentMsgLastId: sentMsg.MessageID}
+				newUser := NewChatUser(sentMsg.Chat.ID)
+				newUser.SentMsgLastId = sentMsg.MessageID
 			}
 		}
 	}

@@ -33,7 +33,7 @@ func (s *StorageRdb) GetNetCityUrl(chatId int64) string {
 	return ""
 }
 
-func (s *StorageRdb) GetName(chatId int64) string {
+func (s *StorageRdb) GetUserName(chatId int64) string {
 	// not implemented
 	return ""
 }
@@ -67,7 +67,7 @@ func (s *StorageRdb) SetNetCityUrl(chatId int64, netCityUrl string) {
 	// not implemented
 }
 
-func (s *StorageRdb) SetName(chatId int64, login string) {
+func (s *StorageRdb) SetUserName(chatId int64, userName string) {
 	// not implemented
 }
 
