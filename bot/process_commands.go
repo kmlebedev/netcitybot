@@ -24,7 +24,6 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 
 	case "start":
 		ReplySelectCity(sendMsg)
-
 	case "track_marks":
 		if user.Marks != nil {
 			sendMsg.Text = ""

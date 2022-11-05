@@ -11,6 +11,8 @@ type UserLoginData struct {
 }
 
 type StorageMap interface {
+	GetNetCityUrls() map[uint64]string
+	UpdateNetCityUrls(urls *[]string)
 	GetUserLoginData(chatId int64) *UserLoginData
 	UpdateUserLoginData(chatId int64, newUserLoginData UserLoginData)
 	NewUserLoginData(chatId int64, userLoginData *UserLoginData)

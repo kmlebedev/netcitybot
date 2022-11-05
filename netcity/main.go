@@ -13,7 +13,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	swagger "github.com/kmlebedev/netSchoolWebApi/go"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httputil"
@@ -204,7 +204,7 @@ func (c *ClientApi) DoViewAnnouncements() error {
 	}
 	// parse var pageVer = 1606918125;
 	re := regexp.MustCompile(`var pageVer = (\d+);`)
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
@@ -461,8 +461,9 @@ func (c *ClientApi) DoAuthV5() error {
 func NewClientApi(config *Config) (c *ClientApi, err error) {
 	cookieJar, _ := cookiejar.New(nil)
 	httpClient := http.Client{
-		Timeout: time.Minute,
-		Jar:     cookieJar,
+		Timeout:   time.Minute,
+		Jar:       cookieJar,
+		Transport: http.DefaultTransport,
 	}
 	webApi := swagger.NewAPIClient(&swagger.Configuration{
 		BasePath: config.Url + "/webapi",

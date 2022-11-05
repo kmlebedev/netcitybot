@@ -27,13 +27,13 @@ type City struct {
 }
 
 var (
-	NetCityUrls = []string{}
-	Cities      = []City{}
-	Schools     = []School{}
+	Cities  = []City{}
+	Schools = []School{}
 )
 
 func prepareLoginData() {
-	if len(NetCityUrls) == 0 {
+	netCityUrls := ChatNetCityDb.GetNetCityUrls()
+	if len(netCityUrls) == 0 {
 		return
 	}
 	cookieJar, _ := cookiejar.New(nil)
@@ -42,7 +42,7 @@ func prepareLoginData() {
 		Jar:     cookieJar,
 	}
 
-	for i, url := range NetCityUrls {
+	for i, url := range netCityUrls {
 		webApi := swagger.NewAPIClient(&swagger.Configuration{
 			BasePath: url + "/webapi",
 			DefaultHeader: map[string]string{
@@ -100,5 +100,5 @@ func prepareLoginData() {
 		})
 	}
 	log.Infof("prepared login data urls: %d, cities: %d, schools: %d",
-		len(NetCityUrls), len(Cities), len(Schools))
+		len(netCityUrls), len(Cities), len(Schools))
 }

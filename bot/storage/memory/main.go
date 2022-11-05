@@ -1,4 +1,4 @@
-package memory
+package storageMemory
 
 import (
 	. "github.com/kmlebedev/netcitybot/bot/storage"
@@ -6,6 +6,7 @@ import (
 )
 
 type StorageMem struct {
+	NetCityUrls         map[uint64]string
 	ChatToUserLoginData map[int64]*UserLoginData
 	lock                sync.RWMutex
 }
@@ -26,6 +27,19 @@ func (s *StorageMem) GetUserLoginData(chatId int64) *UserLoginData {
 	}
 
 	return nil
+}
+
+func (s *StorageMem) GetNetCityUrls() (urls map[uint64]string) {
+	return s.NetCityUrls
+}
+
+func (s *StorageMem) UpdateNetCityUrls(urls *[]string) {
+	if s.NetCityUrls == nil && len(*urls) != 0 {
+		s.NetCityUrls = map[uint64]string{}
+	}
+	for i, url := range *urls {
+		s.NetCityUrls[uint64(i)] = url
+	}
 }
 
 func (s *StorageMem) UpdateUserLoginData(chatId int64, newUserLoginData UserLoginData) {

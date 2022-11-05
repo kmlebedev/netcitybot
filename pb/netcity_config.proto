@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package netcity_config_pb;
+
+option go_package = "github.com/kmlebedev/netcitybot/pb/netcity_config_pb";
+
+message Config {
+
+}

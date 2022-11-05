@@ -1,4 +1,4 @@
-package redis
+package storageRedis
 
 import (
 	"github.com/go-redis/redis/v8"
@@ -13,6 +13,15 @@ func NewStorageRdb(rdb *redis.Client) *StorageRdb {
 	return &StorageRdb{
 		rdb: rdb,
 	}
+}
+
+func (s *StorageRdb) GetNetCityUrls() (urls map[uint64]string) {
+	// not implemented
+	return nil
+}
+
+func (s *StorageRdb) UpdateNetCityUrls(urls *[]string) {
+	// not implemented
 }
 
 func (s *StorageRdb) GetUserLoginData(chatId int64) *UserLoginData {
@@ -53,7 +62,7 @@ func (s *StorageRdb) GetSchoolName(chatId int64) string {
 	return ""
 }
 
-func (s *StorageRdb) GetCityId(chatId int64) int {
+func (s *StorageRdb) GetCityId(chatId int64) int32 {
 	// not implemented
 	return 0
 }
@@ -83,7 +92,7 @@ func (s *StorageRdb) SetSchoolName(chatId int64, schoolName string) {
 	// not implemented
 }
 
-func (s *StorageRdb) SetCityId(chatId int64, cityId int) {
+func (s *StorageRdb) SetCityId(chatId int64, cityId int32) {
 	// not implemented
 }
 

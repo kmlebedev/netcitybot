@@ -7,10 +7,12 @@ import (
 	"github.com/kmlebedev/netcitybot/bot"
 	. "github.com/kmlebedev/netcitybot/bot/constants"
 	"github.com/kmlebedev/netcitybot/bot/storage"
-	storageMemory "github.com/kmlebedev/netcitybot/bot/storage/memory"
-	_ "github.com/kmlebedev/netcitybot/bot/storage/redis"
+	storageBolt "github.com/kmlebedev/netcitybot/bot/storage/bolt"
+	"github.com/kmlebedev/netcitybot/bot/storage/memory"
+	"github.com/kmlebedev/netcitybot/bot/storage/redis"
 	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
+	bolt "go.etcd.io/bbolt"
 	"os"
 	"os/signal"
 	"strconv"
@@ -19,12 +21,12 @@ import (
 )
 
 var (
-	ChatLogins  storage.StorageMap
-	netcityApi  *netcity.ClientApi
-	netcityUrls []string
-	botApi      *tgbotapi.BotAPI
-	botApiToken string
-	botChatId   int64
+	chatNetCityDb storage.StorageMap
+	netcityApi    *netcity.ClientApi
+	netcityUrls   []string
+	botApi        *tgbotapi.BotAPI
+	botApiToken   string
+	botChatId     int64
 )
 
 func IsSyncEnabled() bool {
@@ -111,21 +113,6 @@ func init() {
 	if err != nil {
 		log.Warningf("bot chat id error in env key %s: %s", EnvKeyTgbotChatId, err)
 	}
-	ChatLogins = storageMemory.NewStorageMem()
-	redisOpt := redis.Options{
-		Addr:     os.Getenv(EnvKeyRedisAddress),
-		Password: os.Getenv(EnvKeyRedisPassword),
-	}
-	if redisOpt.Password != "" {
-		if db, err := strconv.Atoi(os.Getenv(EnvKeyRedisDB)); err != nil {
-			redisOpt.DB = db
-		}
-		rdb := redis.NewClient(&redisOpt)
-		if _, err := rdb.Ping(context.Background()).Result(); err != nil {
-			log.Fatalf("Redis Db ping: %v", err)
-		}
-		//ChatLogins = storageRedis.NewStorageRdb(rdb)
-	}
 
 	netcityUrl := TrimUrl(os.Getenv(EnvKeyNetCityUrl))
 	if netcityUrl != "" {
@@ -173,6 +160,35 @@ func main() {
 		DoSync(netcityApi)
 	}
 
+	// Select stotage for netCity data
+	if redisAddr := os.Getenv(EnvKeyRedisAddress); redisAddr != "" {
+		redisOpt := redis.Options{
+			Addr:     redisAddr,
+			Password: os.Getenv(EnvKeyRedisPassword),
+		}
+		if db, err := strconv.Atoi(os.Getenv(EnvKeyRedisDB)); err != nil {
+			redisOpt.DB = db
+		}
+		rdb := redis.NewClient(&redisOpt)
+		if _, err := rdb.Ping(context.Background()).Result(); err != nil {
+			log.Fatalf("Redis Db ping: %v", err)
+		}
+		defer rdb.Close()
+		chatNetCityDb = storageRedis.NewStorageRdb(rdb)
+	} else if boltDBPath := os.Getenv(EnvKeyBoltDBPath); boltDBPath != "" {
+		db, err := bolt.Open("my.db", 0600, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer db.Close()
+		chatNetCityDb = storageBolt.NewStorageBolt(db)
+	} else {
+		chatNetCityDb = storageMemory.NewStorageMem()
+		log.Warningf("Attention, you have not configured the database storage on disk, the received data will be lost, since they are stored in memory only")
+	}
+
+	chatNetCityDb.UpdateNetCityUrls(&netcityUrls)
+
 	// Process message
-	bot.GetUpdates(botApi, &netcityUrls, ChatLogins)
+	bot.GetUpdates(botApi, chatNetCityDb)
 }

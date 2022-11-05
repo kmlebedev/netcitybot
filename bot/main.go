@@ -117,10 +117,9 @@ func trackMarks(login *User) (string, error) {
 	return msg, nil
 }
 
-func GetUpdates(bot *tgbotapi.BotAPI, urls *[]string, chatNetCityDb storage.StorageMap) {
+func GetUpdates(bot *tgbotapi.BotAPI, chatNetCityDb storage.StorageMap) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
-	NetCityUrls = *urls
 	ChatNetCityDb = chatNetCityDb
 	prepareLoginData()
 
