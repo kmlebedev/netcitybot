@@ -148,7 +148,7 @@ func init() {
 }
 
 func main() {
-	botApi.Debug = true
+	// botApi.Debug = true
 	// Only sync assignments to telegram chat
 	if netcityApi != nil {
 		pullStudentIds := GetPullStudentIds()
