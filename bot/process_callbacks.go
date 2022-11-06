@@ -12,9 +12,18 @@ import (
 // Обработываем нажания кнопок
 func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfig) {
 	sendMsg.ChatID = update.CallbackQuery.Message.Chat.ID
+	user := GetChatUser(sendMsg.ChatID)
 	sendMsg.Text = update.CallbackQuery.Data
 	dataArr := strings.Split(update.CallbackQuery.Data, ":")
 	switch dataArr[0] { // Button Data Type
+	case BtTypeState: // state:name Нажатие на кнопку региона
+		user.StateName = dataArr[1]
+		ReplySelectProvince(sendMsg, dataArr[1])
+
+	case BtTypeProvince: // province:name Нажатие на кнопку населённого пункту
+		user.ProvinceName = dataArr[1]
+		ReplySelectCity(sendMsg, dataArr[1])
+
 	case BtTypeCity: // city:name Нажатие на кнопку города
 		if _, ok := ChatUsers[sendMsg.ChatID]; ok {
 			ChatUsers[sendMsg.ChatID].CityName = dataArr[1]
@@ -29,11 +38,11 @@ func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfi
 		schoolId, _ := strconv.Atoi(dataArr[2])
 		if _, ok := ChatUsers[sendMsg.ChatID]; ok {
 			ChatUsers[sendMsg.ChatID].SchoolId = schoolId
-			school := GetSchool(int32(urlId), int32(schoolId))
+			school := UrlSchools[uint64(urlId)][int32(schoolId)]
 			// Todo data race
 			if school != nil {
 				ChatUsers[sendMsg.ChatID].CityId = school.Id
-				ChatUsers[sendMsg.ChatID].NetCityUrl = NetCityUrls[school.UlrId]
+				ChatUsers[sendMsg.ChatID].NetCityUrl = NetCityUrls[school.UrlId]
 				ChatUsers[sendMsg.ChatID].SchoolName = school.Name
 				sendMsg.Text = fmt.Sprintf("%s %s", MsgReqLogin, school.Name)
 			}

@@ -7,6 +7,16 @@ import (
 	"time"
 )
 
+func Login(sendMsg *tgbotapi.MessageConfig) {
+	if len(States) > 1 {
+		ReplySelectState(sendMsg)
+	} else if len(Provinces) > 1 {
+		ReplySelectProvince(sendMsg, States[0].Name)
+	} else {
+		ReplySelectCity(sendMsg, Provinces[0].Name)
+	}
+}
+
 func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, bot *tgbotapi.BotAPI) {
 	netCityApi := GetLoginWebApi(sendMsg.ChatID)
 	if netCityApi == nil && updateMsg.Command() != "start" {
@@ -23,7 +33,7 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 		}
 
 	case "start":
-		ReplySelectCity(sendMsg)
+		Login(sendMsg)
 	case "track_marks":
 		if user.Marks != nil {
 			sendMsg.Text = ""
@@ -65,7 +75,7 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 		sendMsg.Text = fmt.Sprintf("И тебе привет %s", user.LoginName)
 	case "login":
 		sendMsg.Text = "login"
-		ReplySelectCity(sendMsg)
+		Login(sendMsg)
 	case "logout":
 		sendMsg.Text = "logout"
 		netCityApi.Logout()

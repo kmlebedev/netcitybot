@@ -6,11 +6,82 @@ import (
 	. "github.com/kmlebedev/netcitybot/bot/constants"
 	log "github.com/sirupsen/logrus"
 	"sort"
+	"strings"
 )
 
+func ReplySelectState(msg *tgbotapi.MessageConfig) {
+	msg.Text = "Выберите ваш регион"
+	rpKeyboard := tgbotapi.NewInlineKeyboardMarkup()
+	kbButRow := tgbotapi.NewInlineKeyboardRow()
+	textSize := 0
+
+	stateMap := make(map[string]bool)
+	stateNames := make([]string, 0, len(States))
+	for _, c := range States {
+		if _, ok := stateMap[c.Name]; !ok {
+			stateMap[c.Name] = true
+			stateNames = append(stateNames, c.Name)
+		}
+	}
+
+	sort.Strings(stateNames)
+	for _, stateName := range stateNames {
+		if textSize > BtRowMaxSize {
+			rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
+			kbButRow = tgbotapi.NewInlineKeyboardRow()
+			textSize = 0
+		}
+		kbButRow = append(kbButRow, tgbotapi.NewInlineKeyboardButtonData(stateName,
+			fmt.Sprintf("%s:%s", BtTypeState, stateName)))
+		textSize += len(stateName)
+	}
+	rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
+	msg.ReplyMarkup = rpKeyboard
+}
+
+func ReplySelectProvince(msg *tgbotapi.MessageConfig, stateName string) {
+	msg.Text = "Выберите ваш район"
+	rpKeyboard := tgbotapi.NewInlineKeyboardMarkup()
+	kbButRow := tgbotapi.NewInlineKeyboardRow()
+	textSize := 0
+
+	provinceMap := make(map[string]bool)
+	provinceNames := make([]string, 0, len(Provinces))
+	for _, p := range Provinces {
+		if stateName != "" && p.State.Name != stateName {
+			continue
+		}
+		if _, ok := provinceMap[p.Name]; !ok {
+			provinceMap[p.Name] = true
+			provinceNames = append(provinceNames, p.Name)
+		}
+	}
+	if len(provinceNames) == 1 {
+		ReplySelectCity(msg, provinceNames[0])
+		return
+	}
+
+	sort.Strings(provinceNames)
+	for _, provinceName := range provinceNames {
+		if textSize > BtRowMaxSize {
+			rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
+			kbButRow = tgbotapi.NewInlineKeyboardRow()
+			textSize = 0
+		}
+		provinceNameBt := strings.Replace(provinceName, "район", "", 1)
+		provinceNameBt = strings.Replace(provinceNameBt, "Городской округ", "", 1)
+		provinceNameBt = strings.Trim(provinceNameBt, " ")
+		kbButRow = append(kbButRow, tgbotapi.NewInlineKeyboardButtonData(provinceNameBt,
+			fmt.Sprintf("%s:%s", BtTypeProvince, provinceName)))
+		textSize += len(provinceNameBt)
+	}
+	rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
+	msg.ReplyMarkup = rpKeyboard
+}
+
 // Формируем кнопки Городов
-func ReplySelectCity(msg *tgbotapi.MessageConfig) {
-	msg.Text = "Выберите ваш город"
+func ReplySelectCity(msg *tgbotapi.MessageConfig, provinceName string) {
+	msg.Text = "Выберите ваш населённый пункт"
 	rpKeyboard := tgbotapi.NewInlineKeyboardMarkup()
 	kbButRow := tgbotapi.NewInlineKeyboardRow()
 	textSize := 0
@@ -18,10 +89,17 @@ func ReplySelectCity(msg *tgbotapi.MessageConfig) {
 	cityMap := make(map[string]bool)
 	cityNames := make([]string, 0, len(Cities))
 	for _, c := range Cities {
+		if provinceName != "" && c.Province.Name != provinceName {
+			continue
+		}
 		if _, ok := cityMap[c.Name]; !ok {
 			cityMap[c.Name] = true
 			cityNames = append(cityNames, c.Name)
 		}
+	}
+	if len(cityNames) == 1 {
+		ReplySelectSchool(msg, cityNames[0])
+		return
 	}
 	sort.Strings(cityNames)
 	for _, cityName := range cityNames {
@@ -45,8 +123,9 @@ func ReplySelectSchool(msg *tgbotapi.MessageConfig, cityName string) {
 	kbButRow := tgbotapi.NewInlineKeyboardRow()
 	textSize := 0
 	var schoolsWithoutNum []int
+
 	for i, school := range Schools {
-		if school.City != cityName {
+		if cityName != "" && school.City.Name != cityName {
 			continue
 		}
 		if textSize > BtRowMaxSize || len(kbButRow) >= 8 {
@@ -59,16 +138,16 @@ func ReplySelectSchool(msg *tgbotapi.MessageConfig, cityName string) {
 		if school.Num > 0 {
 			schoolNum = fmt.Sprintf("%d", school.Num)
 			kbButRow = append(kbButRow, tgbotapi.NewInlineKeyboardButtonData(schoolNum,
-				fmt.Sprintf("%s:%d:%d", BtTypeSchool, school.UlrId, school.Id)))
+				fmt.Sprintf("%s:%d:%d", BtTypeSchool, school.UrlId, school.Id)))
 			textSize += len(schoolNum)
-			log.Debugf("butten urlId %d, num: %s, id: %d, name %s", school.UlrId, schoolNum, school.Id, school.Name)
+			log.Debugf("butten urlId %d, num: %s, id: %d, name %s", school.UrlId, schoolNum, school.Id, school.Name)
 		} else {
 			schoolsWithoutNum = append(schoolsWithoutNum, i)
 		}
 	}
 	for _, i := range schoolsWithoutNum {
 		kbButRow = append(kbButRow, tgbotapi.NewInlineKeyboardButtonData(Schools[i].Name,
-			fmt.Sprintf("%s:%d:%d", BtTypeSchool, Schools[i].UlrId, Schools[i].Id)))
+			fmt.Sprintf("%s:%d:%d", BtTypeSchool, Schools[i].UrlId, Schools[i].Id)))
 	}
 	rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
 	//log.Infof("append to %s button rows: %d", cityName, len(rpKeyboard.InlineKeyboard))

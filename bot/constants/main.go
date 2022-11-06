@@ -16,9 +16,11 @@ const (
 	EnvKeyRedisPassword   = "REDIS_PASSWORD"
 	EnvKeyBoltDBPath      = "BOLT_DB_PATH"
 
-	BtTypeCity   = "city"
-	BtTypeSchool = "school"
-	MsgReqLogin  = "Введите ваш логин для"
-	MsgReqPasswd = "Введите ваш пароль для логина"
-	BtRowMaxSize = 40
+	BtTypeState    = "st"
+	BtTypeProvince = "pr"
+	BtTypeCity     = "ct"
+	BtTypeSchool   = "sc"
+	MsgReqLogin    = "Введите ваш логин для"
+	MsgReqPasswd   = "Введите ваш пароль для логина"
+	BtRowMaxSize   = 40
 )

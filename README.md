@@ -113,7 +113,7 @@ Class | Method                                                                  
 * https://sgo.cit73.ru/ (5.10.63012.189) - Ульяновская обл
 * http://spo.cit73.ru/ (v3.5.0.97) - Самара 
 * https://sgo.egov66.ru/ (v5.0.59442.919) - Нижний Тагил
-* https://net-school.cap.ru/ (v5.9.62423.47)
+* https://net-school.cap.ru/ (v5.11.63446.41) - Чувашия
 * https://sgo1.edu71.ru/ (v5.0.59442.919)
 * https://sgo.e-mordovia.ru/ (v5.9.62423.47)
 * https://netschool.eduportal44.ru/ (v5.9.62423.47)

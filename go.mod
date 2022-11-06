@@ -7,7 +7,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/goodsign/monday v1.0.0
-	github.com/kmlebedev/netSchoolWebApi v0.0.0-20221021225708-97a5d2f664f3
+	github.com/kmlebedev/netSchoolWebApi v5.10.1+incompatible
 	github.com/sirupsen/logrus v1.9.0
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/exp v0.0.0-20221031165847-c99f073a8326

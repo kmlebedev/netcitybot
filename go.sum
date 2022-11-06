@@ -26,6 +26,10 @@ github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.5.8 h1:e6P7q2lk1O+qJJb4BtCQXlK8vWEO8V1ZeuEdJNOqZyg=
 github.com/kmlebedev/netSchoolWebApi v0.0.0-20221021225708-97a5d2f664f3 h1:vjIWPTITw5ZOSS+J6i0KkvQcbZywM0IONR181M38zWU=
 github.com/kmlebedev/netSchoolWebApi v0.0.0-20221021225708-97a5d2f664f3/go.mod h1:i8vuhXxfVSKTM5d+2mlbpADim4hdoRA2QzxmZq0iKW0=
+github.com/kmlebedev/netSchoolWebApi v5.10.0+incompatible h1:aauxEhc8E6l2jDpFFCfqwFH+O9j8XP8DsYuymjg9nZk=
+github.com/kmlebedev/netSchoolWebApi v5.10.0+incompatible/go.mod h1:i8vuhXxfVSKTM5d+2mlbpADim4hdoRA2QzxmZq0iKW0=
+github.com/kmlebedev/netSchoolWebApi v5.10.1+incompatible h1:kanyJnfsq6a+XJ6+eYNlul7bOwSVUg9UKSnkwH9dVlE=
+github.com/kmlebedev/netSchoolWebApi v5.10.1+incompatible/go.mod h1:i8vuhXxfVSKTM5d+2mlbpADim4hdoRA2QzxmZq0iKW0=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
 github.com/onsi/gomega v1.18.1 h1:M1GfJqGRrBrrGGsbxzV5dqM2U2ApXefZCQpkukxYRLE=

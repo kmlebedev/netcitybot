@@ -19,6 +19,8 @@ type User struct {
 	NetCityUrl     string
 	LoginName      string
 	Password       string
+	StateName      string
+	ProvinceName   string
 	CityName       string
 	SchoolName     string
 	CityId         int32
@@ -79,15 +81,6 @@ func GetLoginWebApi(chatId int64) *netcity.ClientApi {
 	return nil
 }
 
-func GetSchool(urlId int32, id int32) *School {
-	for _, school := range Schools {
-		if school.UlrId == urlId && school.Id == id {
-			return &school
-		}
-	}
-	return nil
-}
-
 func trackMarks(login *User) (string, error) {
 	var msg string
 	marks, err := login.NetCityApi.GetLessonAssignmentMarks()
@@ -121,7 +114,7 @@ func GetUpdates(bot *tgbotapi.BotAPI, chatNetCityDb storage.StorageMap) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	ChatNetCityDb = chatNetCityDb
-	prepareLoginData()
+	GetAllPrepareLoginData()
 
 	updates := bot.GetUpdatesChan(u)
 	for update := range updates {
@@ -155,6 +148,9 @@ func GetUpdates(bot *tgbotapi.BotAPI, chatNetCityDb storage.StorageMap) {
 			sentMsg, err := bot.Send(msg)
 			if err != nil {
 				log.Error(err)
+			}
+			if sentMsg.Chat == nil {
+				return
 			}
 			if user := GetChatUser(sentMsg.Chat.ID); user != nil {
 				user.SentMsgLastId = sentMsg.MessageID
