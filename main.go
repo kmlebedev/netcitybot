@@ -13,6 +13,7 @@ import (
 	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -115,15 +116,28 @@ func init() {
 	}
 
 	netcityUrl := TrimUrl(os.Getenv(EnvKeyNetCityUrl))
-	if netcityUrl != "" {
-		if netcityApi, err = netcity.NewClientApi(&netcity.Config{
-			Url:      netcityUrl,
-			School:   os.Getenv(EnvKeyNetCitySchool),
-			Username: os.Getenv(EnvKeyNetCityUsername),
-			Password: os.Getenv(EnvKeyNetCityPassword),
-		}); err != nil {
-			log.Warning(err)
+	schoolName := os.Getenv(EnvKeyNetCitySchool)
+	if netcityUrl != "" && schoolName != "" {
+		bot.GetPrepareLoginData(0, netcityUrl, http.DefaultClient)
+		for _, school := range bot.Schools {
+			if school.Name == schoolName {
+				if netcityApi, err = netcity.NewClientApi(netcityUrl, &netcity.AuthParams{
+					LoginType: netcity.NetCityAuthLoginType,
+					Cid:       school.Country.Id,
+					Scid:      school.Id,
+					Pid:       school.Province.Id,
+					Cn:        school.City.Id,
+					Sft:       school.Sft,
+					Sid:       school.Id,
+					Username:  os.Getenv(EnvKeyNetCityUsername),
+					Password:  os.Getenv(EnvKeyNetCityPassword),
+				}); err != nil {
+					log.Warning(err)
+				}
+				break
+			}
 		}
+
 	}
 
 	singelUrlFound := false

@@ -458,7 +458,7 @@ func (c *ClientApi) DoAuthV5() error {
 	return nil
 }
 
-func NewClientApi(config *Config) (c *ClientApi, err error) {
+func NewClientApi(url string, authParams *AuthParams) (c *ClientApi, err error) {
 	cookieJar, _ := cookiejar.New(nil)
 	httpClient := http.Client{
 		Timeout:   time.Minute,
@@ -466,43 +466,19 @@ func NewClientApi(config *Config) (c *ClientApi, err error) {
 		Transport: http.DefaultTransport,
 	}
 	webApi := swagger.NewAPIClient(&swagger.Configuration{
-		BasePath: config.Url + "/webapi",
+		BasePath: url + "/webapi",
 		DefaultHeader: map[string]string{
-			"Referer":          config.Url + "/",
+			"Referer":          url + "/",
 			"X-Requested-With": "XMLHttpRequest",
 			"Accept":           "application/json, text/javascript, */*; q=0.01",
 		},
 		HTTPClient: &httpClient,
 	})
-	prepareLoginForm, _, err := webApi.LoginApi.Prepareloginform(context.Background(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("Prepareloginform: ", err)
-	}
-	schools := map[string]int32{}
-	scId := int32(config.SchoolId)
-	for _, school := range prepareLoginForm.Schools {
-		schools[school.Name] = school.Id
-		if school.Name != "" && school.Name == config.School {
-			scId = school.Id
-		}
-	}
-
 	c = &ClientApi{
-		WebApi: webApi,
-		AuthParams: &AuthParams{
-			LoginType: NetCityAuthLoginType,
-			Cid:       prepareLoginForm.Cid,
-			Scid:      scId,
-			Pid:       prepareLoginForm.Pid,
-			Cn:        prepareLoginForm.Cn,
-			Sft:       prepareLoginForm.Sft,
-			Sid:       prepareLoginForm.Sid,
-			Username:  config.Username,
-			Password:  config.Password,
-		},
-		BaseUrl:    config.Url,
+		WebApi:     webApi,
+		AuthParams: authParams,
+		BaseUrl:    url,
 		HTTPClient: &httpClient,
-		Schools:    schools,
 		Years:      map[string]int32{},
 		Classes:    map[string]int32{},
 		Students:   map[StudentId]string{},

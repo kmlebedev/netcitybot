@@ -72,7 +72,7 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 		}(sendMsg.ChatID, bot, user)
 
 	case "hello":
-		sendMsg.Text = fmt.Sprintf("И тебе привет %s", user.LoginName)
+		sendMsg.Text = fmt.Sprintf("И тебе привет %s", user.UserName)
 	case "login":
 		sendMsg.Text = "login"
 		Login(sendMsg)

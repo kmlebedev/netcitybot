@@ -37,13 +37,9 @@ func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfi
 		urlId, _ := strconv.Atoi(dataArr[1])
 		schoolId, _ := strconv.Atoi(dataArr[2])
 		if _, ok := ChatUsers[sendMsg.ChatID]; ok {
-			ChatUsers[sendMsg.ChatID].SchoolId = schoolId
-			school := UrlSchools[uint64(urlId)][int32(schoolId)]
-			// Todo data race
-			if school != nil {
-				ChatUsers[sendMsg.ChatID].CityId = school.Id
-				ChatUsers[sendMsg.ChatID].NetCityUrl = NetCityUrls[school.UrlId]
-				ChatUsers[sendMsg.ChatID].SchoolName = school.Name
+			// Todo avoid data race
+			if school := UrlSchools[uint64(urlId)][int32(schoolId)]; school != nil {
+				user.School = school
 				sendMsg.Text = fmt.Sprintf("%s %s", MsgReqLogin, school.Name)
 			}
 			//log.Warningf("%v: school id:%d not found", btTypeLogin, schoolId)

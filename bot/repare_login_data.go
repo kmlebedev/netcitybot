@@ -43,6 +43,7 @@ type SchoolLoginData struct {
 	Name     string
 	Num      int32
 	UrlId    uint64
+	Sft      int32
 	Country  *CountryLoginData
 	State    *StateLoginData
 	Province *ProvinceLoginData
@@ -135,8 +136,7 @@ func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
 		log.Warningf("prepareLoginForm url %s: %+v", url, err)
 		return
 	}
-
-	var schoolTpl SchoolLoginData
+	schoolTpl := SchoolLoginData{Sft: prepareLoginForm.Sft}
 	for _, countryForm := range prepareLoginForm.Countries {
 		country := CountryLoginData{Id: countryForm.Id, Name: countryForm.Name, UrlId: urlId}
 		Countries = append(Countries, country)
@@ -214,7 +214,6 @@ func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
 		}
 		UrlSchools[urlId][school.Id] = &school
 	}
-
 	//sort.Slice(schools, func(i, j int) bool {
 	//	return schools[i].School.Num < schools[j].School.Num
 	//})

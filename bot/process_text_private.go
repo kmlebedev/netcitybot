@@ -9,24 +9,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func ProcessTextPrivate(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, user *User, netcityApi *netcity.ClientApi) {
+func ProcessTextPrivate(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, user *User) {
 	switch {
 	// Обработываем ввод логина
 	case updateMsg.MessageID == user.ReqNameMsgId+1:
-		user.LoginName = updateMsg.Text
+		user.UserName = updateMsg.Text
 		user.ReqPasswdMsgId = updateMsg.MessageID
-		sendMsg.Text = fmt.Sprintf("%s %s", MsgReqPasswd, user.LoginName)
+		sendMsg.Text = fmt.Sprintf("%s %s", MsgReqPasswd, user.UserName)
 
 	// Обработываем ввод пароля
 	case updateMsg.MessageID == user.ReqPasswdMsgId+1:
-		loginPassword := updateMsg.Text
-		netcityConfig := netcity.Config{
-			Url:      user.NetCityUrl,
-			SchoolId: user.SchoolId,
-			Username: user.LoginName,
-			Password: loginPassword,
-		}
-		if netCityApi, err := netcity.NewClientApi(&netcityConfig); err == nil {
+		user.Password = updateMsg.Text
+		if netCityApi, err := netcity.NewClientApi(NetCityUrls[user.School.UrlId], user.GetAuthParam()); err == nil {
 			user.NetCityApi = netCityApi
 			sendMsg.Text = fmt.Sprintf("Данные верны")
 			// Todo под учеткой родителя необходиямо явно передавать id класса
@@ -41,10 +35,10 @@ func ProcessTextPrivate(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageCo
 		// Todo неоходимо запросить разрешение на сохранение даных на диск
 		// Сохраняем данные для логина
 		ChatNetCityDb.NewUserLoginData(updateMsg.Chat.ID, &storage.UserLoginData{
-			NetCityUrl: netcityConfig.Url,
-			SchoolId:   netcityConfig.SchoolId,
-			UserName:   netcityConfig.Username,
-			Password:   netcityConfig.Password,
+			NetCityUrl: user.NetCityUrl,
+			SchoolId:   user.SchoolId,
+			UserName:   user.UserName,
+			Password:   user.Password,
 			CityId:     user.CityId,
 			CityName:   user.CityName,
 			SchoolName: user.SchoolName,

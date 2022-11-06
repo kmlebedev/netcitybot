@@ -16,8 +16,9 @@ type User struct {
 	NetCityConfig  *netcity.Config
 	NetCityApi     *netcity.ClientApi
 	Marks          map[int]netcity.AssignmentMark
+	School         *SchoolLoginData
 	NetCityUrl     string
-	LoginName      string
+	UserName       string
 	Password       string
 	StateName      string
 	ProvinceName   string
@@ -30,6 +31,20 @@ type User struct {
 	ReqPasswdMsgId int
 	TrackMarksCn   chan bool
 	Valid          bool
+}
+
+func (u *User) GetAuthParam() *netcity.AuthParams {
+	return &netcity.AuthParams{
+		LoginType: netcity.NetCityAuthLoginType,
+		Cid:       u.School.Country.Id,
+		Scid:      u.School.Id,
+		Pid:       u.School.Province.Id,
+		Cn:        u.School.City.Id,
+		Sft:       u.School.Sft,
+		Sid:       u.School.Id,
+		Username:  u.UserName,
+		Password:  u.Password,
+	}
 }
 
 var (
@@ -64,13 +79,7 @@ func GetLoginWebApi(chatId int64) *netcity.ClientApi {
 		return user.NetCityApi
 	}
 	if userLoginData := ChatNetCityDb.GetUserLoginData(chatId); userLoginData != nil {
-		clientApi, err := netcity.NewClientApi(&netcity.Config{
-			Url:      userLoginData.NetCityUrl,
-			SchoolId: userLoginData.SchoolId,
-			School:   userLoginData.SchoolName,
-			Username: userLoginData.UserName,
-			Password: userLoginData.Password,
-		})
+		clientApi, err := netcity.NewClientApi(NetCityUrls[user.School.UrlId], user.GetAuthParam())
 		if err != nil {
 			log.Errorf("netcity.NewClientApi: %v", err)
 			return nil
@@ -133,14 +142,12 @@ func GetUpdates(bot *tgbotapi.BotAPI, chatNetCityDb storage.StorageMap) {
 			case update.Message.Text != "":
 				user := GetChatUser(update.Message.Chat.ID)
 				netCityApi := GetLoginWebApi(update.Message.Chat.ID)
-				if netCityApi == nil {
-					msg.Text = "Вы не вошли в дневник"
-					return
-				}
-				if update.Message.Chat.IsPrivate() {
-					ProcessTextPrivate(update.Message, &msg, user, netCityApi)
-				} else {
+				if update.Message.Chat.IsPrivate() && netCityApi == nil {
+					ProcessTextPrivate(update.Message, &msg, user)
+				} else if netCityApi != nil {
 					ProcessText(update.Message, &msg, user, netCityApi)
+				} else {
+					msg.Text = "Вы не вошли в дневник"
 				}
 			}
 		}
