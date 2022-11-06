@@ -26,8 +26,6 @@ jobs:
             kmlebedev/netcitybot
           tags: |
             type=ref,event=tag
-          flavor: |
-            latest=false
           labels: |
             org.opencontainers.image.title=netcitybot
             org.opencontainers.image.description=NetCityBot is a API client and telegram bot for "Network City. Education" written in Golang
