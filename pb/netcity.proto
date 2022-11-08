@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package netcity;
+
+option go_package = "github.com/kmlebedev/netcitybot/pb/netcity_pb";
+
+message AuthParam {
+  int32 Cid = 1;
+  int32 Sid = 2;
+  int32 Pid = 3;
+  int32 Cn = 4;
+  int32 Scid = 5;
+  string UN = 6;
+  string PW = 7;
+  uint32 UrlId = 8;
+}

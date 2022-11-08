@@ -2,7 +2,9 @@ package storageBolt
 
 import (
 	"encoding/binary"
-	. "github.com/kmlebedev/netcitybot/bot/storage"
+	"github.com/golang/protobuf/proto"
+	netcity_pb "github.com/kmlebedev/netcitybot/pb/netcity"
+	log "github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/exp/slices"
 )
@@ -13,9 +15,15 @@ var (
 )
 
 // itob returns an 8-byte big endian representation of v.
-func itob(v uint64) []byte {
+func uitob(v uint64) []byte {
 	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(v))
+	binary.PutUvarint(b, v)
+	return b
+}
+
+func itob(v int64) []byte {
+	b := make([]byte, 8)
+	binary.PutVarint(b, v)
 	return b
 }
 
@@ -33,7 +41,8 @@ func NewStorageBolt(db *bolt.DB) *StorageBolt {
 func (s *StorageBolt) GetNetCityUrls() (urls map[uint64]string) {
 	s.db.View(func(tx *bolt.Tx) error {
 		tx.Bucket(urlsBucket).ForEach(func(k, v []byte) error {
-			urls[binary.BigEndian.Uint64(k)] = string(v)
+			key, _ := binary.Uvarint(k)
+			urls[key] = string(v)
 			return nil
 		})
 		return nil
@@ -55,87 +64,64 @@ func (s *StorageBolt) UpdateNetCityUrls(urls *[]string) {
 		s.db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket(urlsBucket)
 			id, _ := b.NextSequence()
-			return b.Put(itob(id), []byte(url))
+			return b.Put(uitob(id), []byte(url))
 		})
 	}
 }
 
-func (s *StorageBolt) GetUserLoginData(chatId int64) *UserLoginData {
-	// not implemented
-	return nil
-}
-
-func (s *StorageBolt) UpdateUserLoginData(chatId int64, newUserLoginData UserLoginData) {
-	// not implemented
-}
-
-func (s *StorageBolt) NewUserLoginData(chatId int64, userLoginData *UserLoginData) {
-	s.db.Update(func(tx *bolt.Tx) error {
+func (s *StorageBolt) GetUserLoginData(chatId int64) *netcity_pb.AuthParam {
+	var authParam netcity_pb.AuthParam
+	s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(configBucket)
-		err := b.Put([]byte("answer"), []byte("42"))
-		return err
+		value := b.Get(itob(chatId))
+		return proto.Unmarshal(value, &authParam)
 	})
+	return &authParam
 }
 
-func (s *StorageBolt) GetNetCityUrl(chatId int64) string {
-	// not implemented
-	return ""
+func (s *StorageBolt) UpdateUserLoginData(chatId int64, newUserLoginData *netcity_pb.AuthParam) {
+	value := s.GetUserLoginData(chatId)
+	if value == nil {
+		s.PutUserLoginData(chatId, newUserLoginData)
+		return
+	}
+	if newUserLoginData.Cid != 0 {
+		value.Cid = newUserLoginData.Cid
+	}
+	if newUserLoginData.Pid != 0 {
+		value.Pid = newUserLoginData.Pid
+	}
+	if newUserLoginData.Sid != 0 {
+		value.Sid = newUserLoginData.Sid
+	}
+	if newUserLoginData.Cn != 0 {
+		value.Cn = newUserLoginData.Cn
+	}
+	if newUserLoginData.Scid != 0 {
+		value.Scid = newUserLoginData.Scid
+	}
+	if newUserLoginData.UrlId != 0 {
+		value.UrlId = newUserLoginData.UrlId
+	}
+	if newUserLoginData.UN != "" {
+		value.UN = newUserLoginData.UN
+	}
+	if newUserLoginData.PW != "" {
+		value.PW = newUserLoginData.PW
+	}
+	s.PutUserLoginData(chatId, value)
 }
 
-func (s *StorageBolt) GetUserName(chatId int64) string {
-	// not implemented
-	return ""
-}
-
-func (s *StorageBolt) GetPassword(chatId int64) string {
-	// not implemented
-	return ""
-}
-
-func (s *StorageBolt) GetCityName(chatId int64) string {
-	// not implemented
-	return ""
-}
-
-func (s *StorageBolt) GetSchoolName(chatId int64) string {
-	// not implemented
-	return ""
-}
-
-func (s *StorageBolt) GetCityId(chatId int64) int32 {
-	// not implemented
-	return 0
-}
-
-func (s *StorageBolt) GetSchoolId(chatId int64) int {
-	// not implemented
-	return 0
-}
-
-func (s *StorageBolt) SetNetCityUrl(chatId int64, netCityUrl string) {
-	// not implemented
-}
-
-func (s *StorageBolt) SetUserName(chatId int64, userName string) {
-	// not implemented
-}
-
-func (s *StorageBolt) SetPassword(chatId int64, password string) {
-	// not implemented
-}
-
-func (s *StorageBolt) SetCityName(chatId int64, cityName string) {
-	// not implemented
-}
-
-func (s *StorageBolt) SetSchoolName(chatId int64, schoolName string) {
-	// not implemented
-}
-
-func (s *StorageBolt) SetCityId(chatId int64, cityId int32) {
-	// not implemented
-}
-
-func (s *StorageBolt) SetSchoolId(chatId int64, schoolId int) {
-	// not implemented
+func (s *StorageBolt) PutUserLoginData(chatId int64, userLoginData *netcity_pb.AuthParam) {
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		value, err := proto.Marshal(userLoginData)
+		if err != nil {
+			return err
+		}
+		b := tx.Bucket(configBucket)
+		return b.Put(itob(chatId), value)
+	})
+	if err != nil {
+		log.Errorf("NewUserLoginData: %v", err)
+	}
 }

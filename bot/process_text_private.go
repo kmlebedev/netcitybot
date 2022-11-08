@@ -4,8 +4,8 @@ import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	. "github.com/kmlebedev/netcitybot/bot/constants"
-	"github.com/kmlebedev/netcitybot/bot/storage"
 	"github.com/kmlebedev/netcitybot/netcity"
+	"github.com/kmlebedev/netcitybot/pb/netcity"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -34,14 +34,15 @@ func ProcessTextPrivate(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageCo
 		}
 		// Todo неоходимо запросить разрешение на сохранение даных на диск
 		// Сохраняем данные для логина
-		ChatNetCityDb.NewUserLoginData(updateMsg.Chat.ID, &storage.UserLoginData{
-			NetCityUrl: user.NetCityUrl,
-			SchoolId:   user.SchoolId,
-			UserName:   user.UserName,
-			Password:   user.Password,
-			CityId:     user.CityId,
-			CityName:   user.CityName,
-			SchoolName: user.SchoolName,
+		ChatNetCityDb.PutUserLoginData(updateMsg.Chat.ID, &netcity_pb.AuthParam{
+			Cid:   user.School.Country.Id,
+			Scid:  user.School.Id,
+			Pid:   user.School.Province.Id,
+			Cn:    user.School.City.Id,
+			Sid:   user.School.Id,
+			UN:    user.UserName,
+			PW:    user.Password,
+			UrlId: uint32(user.School.UrlId),
 		})
 	}
 }
