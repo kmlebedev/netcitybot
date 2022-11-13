@@ -1,10 +1,10 @@
-name: "docker: build release containers for normal volume"
+name: "docker: build release container"
 
 on:
   push:
     tags:
       - '*'
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,15 +12,14 @@ permissions:
 jobs:
   build-default-release-container:
     runs-on: self-hosted
-
     steps:
       -
         name: Checkout
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v2
+        uses: actions/checkout@v2.5.0
       -
         name: Docker meta
         id: docker_meta
-        uses: docker/metadata-action@69f6fc9d46f2f8bf0d5491e4aabe0bb8c6a4678a # v3
+        uses: docker/metadata-action@v4.1.1
         with:
           images: |
             kmlebedev/netcitybot
@@ -32,20 +31,20 @@ jobs:
             org.opencontainers.image.vendor=Konstantin Lebedev
       -
         name: Set up QEMU
-        uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # v1
+        uses: docker/setup-qemu-action@v2.1.0
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # v1
+        uses: docker/setup-buildx-action@v2.2.1
       -
         name: Login to Docker Hub
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # v1
+        uses: docker/login-actionn@v2.1.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       -
         name: Build
-        uses: docker/build-push-action@c84f38281176d4c9cdb1626ffafcd6b3911b5d94 # v2
+        uses: docker/build-push-action@v3.2.0
         with:
           context: ./docker
           push: ${{ github.event_name != 'pull_request' }}

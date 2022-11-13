@@ -6,6 +6,7 @@ import (
 	. "github.com/kmlebedev/netcitybot/bot/constants"
 	"github.com/kmlebedev/netcitybot/bot/storage"
 	"github.com/kmlebedev/netcitybot/netcity"
+	netcity_pb "github.com/kmlebedev/netcitybot/pb/netcity"
 	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
@@ -33,17 +34,19 @@ type User struct {
 	Valid          bool
 }
 
-func (u *User) GetAuthParam() *netcity.AuthParams {
-	return &netcity.AuthParams{
-		LoginType: netcity.NetCityAuthLoginType,
-		Cid:       u.School.Country.Id,
-		Scid:      u.School.Id,
-		Pid:       u.School.Province.Id,
-		Cn:        u.School.City.Id,
-		Sft:       u.School.Sft,
-		Sid:       u.School.Id,
-		Username:  u.UserName,
-		Password:  u.Password,
+func (u *User) GetAuthParam() *netcity_pb.AuthParam {
+	if u.School == nil {
+		return nil
+	}
+	return &netcity_pb.AuthParam{
+		Cid:  u.School.Country.Id,
+		Scid: u.School.Id,
+		Pid:  u.School.Province.Id,
+		Cn:   u.School.City.Id,
+		Sft:  u.School.Sft,
+		Sid:  u.School.State.Id,
+		UN:   u.UserName,
+		PW:   u.Password,
 	}
 }
 
@@ -79,8 +82,8 @@ func GetLoginWebApi(chatId int64) *netcity.ClientApi {
 		return user.NetCityApi
 	}
 	if userLoginData := ChatNetCityDb.GetUserLoginData(chatId); userLoginData != nil {
-		clientApi, err := netcity.NewClientApi(NetCityUrls[user.School.UrlId], user.GetAuthParam())
-		if err != nil {
+		clientApi, err := netcity.NewClientApi(NetCityUrls[uint64(userLoginData.UrlId)], userLoginData)
+		if err != nil || clientApi == nil {
 			log.Errorf("netcity.NewClientApi: %v", err)
 			return nil
 		}

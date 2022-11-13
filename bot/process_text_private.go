@@ -35,6 +35,7 @@ func ProcessTextPrivate(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageCo
 		// Todo неоходимо запросить разрешение на сохранение даных на диск
 		// Сохраняем данные для логина
 		ChatNetCityDb.PutUserLoginData(updateMsg.Chat.ID, &netcity_pb.AuthParam{
+			Sft:   user.School.Sft,
 			Cid:   user.School.Country.Id,
 			Scid:  user.School.Id,
 			Pid:   user.School.Province.Id,

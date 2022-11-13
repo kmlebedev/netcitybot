@@ -40,7 +40,8 @@ docker run --env-file ./netcity_env kmlebedev/netcitybot:latest
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kmlebedev/netcitybot/main/docker/docker-compose.yml -o docker-compose.yml
 ```
-2. Установить переменные:
+2. Установить переменные
+Пересылки домашних заданий в группу или канал:
 ```bash
 echo "NETCITY_URL=http://192.168.1.1
 NETCITY_STUDENT_IDS=71111,72222
@@ -48,13 +49,20 @@ NETCITY_SCHOOL=МБОУ СОШ №1
 NETCITY_USERNAME=ИвановИ
 NETCITY_PASSWORD=123456
 NETCITY_YEAR_ID=
-NETCITY_URLs=http://192.168.1.1,http://192.168.1.2
 BOT_API_TOKEN=xxxxxxxxxxxxxxxxx
-BOT_CHAT_ID=170000000" > .env_hobby
+BOT_CHAT_ID=170000000" > .env_sync
 ```
+
+Чат бот:
+```bash
+echo "
+NETCITY_URLs=http://192.168.1.1,http://192.168.1.2
+BOT_API_TOKEN=xxxxxxxxxxxxxxxxx" > .env_chat
+```
+
 3. Запустить сервис:
 ```bash
-docker-compose --env-file .env_hobby -f docker-compose.yml up -d
+docker-compose --env-file .env_chat -f docker-compose.yml up -d
 ```
 
 # Доккументация по публичному Web API NetSchool

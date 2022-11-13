@@ -1,6 +1,20 @@
 package constants
 
+import (
+	"crypto/md5"
+	"encoding/hex"
+)
+
+// MD5 hashes using md5 algorithm
+func MD5(text string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(text))
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
 const (
+	NetCityAuthLoginType = 1
+
 	EnvKeyTgbotToken      = "BOT_API_TOKEN"
 	EnvKeyTgbotChatId     = "BOT_CHAT_ID"    // -1001402812566
 	EnvKeyNetCitySchool   = "NETCITY_SCHOOL" // МБОУ СОШ №53

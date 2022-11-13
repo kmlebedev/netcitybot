@@ -8,11 +8,15 @@ import (
 )
 
 func Login(sendMsg *tgbotapi.MessageConfig) {
+	if netCityApi := GetLoginWebApi(sendMsg.ChatID); netCityApi != nil {
+		sendMsg.Text = "Вы уже вошли в дневник"
+		return
+	}
 	if len(States) > 1 {
 		ReplySelectState(sendMsg)
 	} else if len(Provinces) > 1 {
 		ReplySelectProvince(sendMsg, States[0].Name)
-	} else {
+	} else if len(Provinces) == 1 {
 		ReplySelectCity(sendMsg, Provinces[0].Name)
 	}
 }
@@ -77,7 +81,7 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 		sendMsg.Text = "login"
 		Login(sendMsg)
 	case "logout":
-		sendMsg.Text = "logout"
 		netCityApi.Logout()
+		sendMsg.Text = "logout"
 	}
 }

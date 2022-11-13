@@ -12,5 +12,6 @@ message AuthParam {
   int32 Scid = 5;
   string UN = 6;
   string PW = 7;
-  uint32 UrlId = 8;
+  int32  Sft = 8;
+  uint32 UrlId = 9;
 }

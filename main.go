@@ -11,6 +11,7 @@ import (
 	"github.com/kmlebedev/netcitybot/bot/storage/memory"
 	"github.com/kmlebedev/netcitybot/bot/storage/redis"
 	"github.com/kmlebedev/netcitybot/netcity"
+	netcity_pb "github.com/kmlebedev/netcitybot/pb/netcity"
 	log "github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
 	"net/http"
@@ -117,41 +118,39 @@ func init() {
 
 	netcityUrl := TrimUrl(os.Getenv(EnvKeyNetCityUrl))
 	schoolName := os.Getenv(EnvKeyNetCitySchool)
-	if netcityUrl != "" && schoolName != "" {
+	if netcityUrl != "" && schoolName != "" && botChatId != 0 {
 		bot.GetPrepareLoginData(0, netcityUrl, http.DefaultClient)
 		for _, school := range bot.Schools {
 			if school.Name == schoolName {
-				if netcityApi, err = netcity.NewClientApi(netcityUrl, &netcity.AuthParams{
-					LoginType: netcity.NetCityAuthLoginType,
-					Cid:       school.Country.Id,
-					Scid:      school.Id,
-					Pid:       school.Province.Id,
-					Cn:        school.City.Id,
-					Sft:       school.Sft,
-					Sid:       school.Id,
-					Username:  os.Getenv(EnvKeyNetCityUsername),
-					Password:  os.Getenv(EnvKeyNetCityPassword),
+				if netcityApi, err = netcity.NewClientApi(netcityUrl, &netcity_pb.AuthParam{
+					Cid:  school.Country.Id,
+					Scid: school.Id,
+					Pid:  school.Province.Id,
+					Cn:   school.City.Id,
+					Sft:  school.Sft,
+					Sid:  school.Id,
+					UN:   os.Getenv(EnvKeyNetCityUsername),
+					PW:   os.Getenv(EnvKeyNetCityPassword),
 				}); err != nil {
 					log.Warning(err)
 				}
 				break
 			}
 		}
-
 	}
 
-	singelUrlFound := false
+	singleUrlFound := false
 	for _, url := range strings.Split(os.Getenv(EnvKeyNetCityUrls), ",") {
 		if url == "" {
 			continue
 		}
 		urlTrimed := TrimUrl(url)
 		if urlTrimed == netcityUrl {
-			singelUrlFound = true
+			singleUrlFound = true
 		}
 		netcityUrls = append(netcityUrls, urlTrimed)
 	}
-	if netcityUrl != "" && !singelUrlFound {
+	if netcityUrl != "" && !singleUrlFound {
 		netcityUrls = append(netcityUrls, netcityUrl)
 	}
 
@@ -200,7 +199,6 @@ func main() {
 		chatNetCityDb = storageMemory.NewStorageMem()
 		log.Warningf("Attention, you have not configured the database storage on disk, the received data will be lost, since they are stored in memory only")
 	}
-
 	chatNetCityDb.UpdateNetCityUrls(&netcityUrls)
 
 	// Process message

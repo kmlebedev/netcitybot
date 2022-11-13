@@ -16,8 +16,8 @@ dev_go_build: build
 go_build:
 	docker build --no-cache -t kmlebedev/netcitybot:local -f docker/Dockerfile.go_build .
 
-redis_up:
+redis:
 	docker-compose -f docker/docker-compose-redis-only.yml up
 
-redis_down:
-	docker-compose -f docker/docker-compose-redis-only.yml up
+dev_redis: dev
+	docker-compose --env-file .env -f docker/docker-compose-dev.yml up

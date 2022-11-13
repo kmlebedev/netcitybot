@@ -3,11 +3,13 @@ package storageRedis
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/proto"
 	netcity_pb "github.com/kmlebedev/netcitybot/pb/netcity"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -61,7 +63,20 @@ func (s *StorageRdb) GetNetCityUrls() (urls map[uint64]string) {
 }
 
 func (s *StorageRdb) UpdateNetCityUrls(urls *[]string) {
-	if err := s.rdb.RPush(ctx, netCityUrlsKey, urls).Err(); err != nil {
+	if len(*urls) == 0 {
+		return
+	}
+	urlsArr, _ := s.rdb.LRange(ctx, netCityUrlsKey, 0, -1).Result()
+	savedUrls := []string{}
+	for _, url := range *urls {
+		if !slices.Contains(urlsArr, url) {
+			savedUrls = append(savedUrls, url)
+		}
+	}
+	if len(savedUrls) == 0 {
+		return
+	}
+	if err := s.rdb.RPush(ctx, netCityUrlsKey, savedUrls).Err(); err != nil {
 		log.Errorf("rdb.RPush netCityUrls %+v", err)
 	}
 }
@@ -100,18 +115,24 @@ func (s *StorageRdb) PutUserLoginData(chatId int64, userLoginData *netcity_pb.Au
 
 func (s *StorageRdb) GetUserLoginData(chatId int64) *netcity_pb.AuthParam {
 	userLoginData := netcity_pb.AuthParam{}
-	if valueStr, err := s.rdb.Get(ctx, getUserLoginDataKey(chatId)).Result(); err == nil {
-		if value, err := base64.StdEncoding.DecodeString(valueStr); err == nil {
-			if err := proto.Unmarshal(value, &userLoginData); err == nil {
-				return &userLoginData
-			} else {
-				log.Errorf("proto.Unmarshal userLoginData %+v", err)
-			}
-		} else {
-			log.Errorf("DecodeString userLoginData %+v", err)
+	valueStr, err := s.rdb.Get(ctx, getUserLoginDataKey(chatId)).Result()
+	if err != nil {
+		if !errors.Is(err, redis.Nil) {
+			log.Errorf("GetUserLoginData: s.rdb.Get userLoginData %+v", err)
 		}
-	} else {
-		log.Errorf("s.rdb.Get userLoginData %+v", err)
+		return nil
 	}
-	return nil
+
+	value, err := base64.StdEncoding.DecodeString(valueStr)
+	if err != nil {
+		log.Errorf("GetUserLoginData: DecodeString userLoginData %+v", err)
+		return nil
+	}
+
+	if err := proto.Unmarshal(value, &userLoginData); err != nil {
+		log.Errorf("GetUserLoginData: proto.Unmarshal userLoginData %+v", err)
+		return nil
+	}
+
+	return &userLoginData
 }

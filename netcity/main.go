@@ -4,14 +4,14 @@ package netcity
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	swagger "github.com/kmlebedev/netSchoolWebApi/go"
+	"github.com/kmlebedev/netcitybot/bot/constants"
+	netcity_pb "github.com/kmlebedev/netcitybot/pb/netcity"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -24,8 +24,6 @@ import (
 	"strings"
 	"time"
 )
-
-const NetCityAuthLoginType = 1
 
 var (
 	ctx = context.Background()
@@ -84,7 +82,7 @@ type StudentId struct {
 type ClientApi struct {
 	WebApi        *swagger.APIClient
 	BaseUrl       string
-	AuthParams    *AuthParams
+	AuthParams    *netcity_pb.AuthParam
 	HTTPClient    *http.Client
 	At            string
 	Ver           int
@@ -104,32 +102,6 @@ type AssignmentMark struct {
 	Mark           int
 	AssignmentName string
 	AssignmentId   int
-}
-
-// MD5 hashes using md5 algorithm
-func MD5(text string) string {
-	hasher := md5.New()
-	hasher.Write([]byte(text))
-	return hex.EncodeToString(hasher.Sum(nil))
-}
-
-func (a *AuthParams) GetUrlValues(authData *AuthData) url.Values {
-	//  str(salt + hashlib.md5(password.encode('utf-8')).hexdigest()).encode('utf-8')
-	md5Password := MD5(authData.Salt + MD5(a.Password))
-	return url.Values{
-		"LoginType": {strconv.FormatInt(int64(a.LoginType), 10)},
-		"cid":       {strconv.FormatInt(int64(a.Cid), 10)},
-		"sid":       {strconv.FormatInt(int64(a.Sid), 10)},
-		"pid":       {strconv.FormatInt(int64(a.Pid), 10)},
-		"cn":        {strconv.FormatInt(int64(a.Cn), 10)},
-		"sft":       {strconv.FormatInt(int64(a.Sft), 10)},
-		"scid":      {strconv.FormatInt(int64(a.Scid), 10)},
-		"UN":        {a.Username},
-		"PW":        {md5Password[:len(a.Password)]},
-		"lt":        {authData.Lt},
-		"pw2":       {md5Password},
-		"ver":       {authData.Ver},
-	}
 }
 
 // https://netcity.eimc.ru/doc/%D1%81%D1%81%D1%8B%D0%BB%D0%BA%D0%B0%206%D0%93.docx?at=122637423789174617893268&VER=1606765770504&attachmentId=772789
@@ -398,7 +370,7 @@ func (c *ClientApi) DoAuthV4() error {
 		return err
 	}
 	//  --data-raw 'LoginType=1&cid=2&sid=66&pid=-1&cn=3&sft=2&scid=23&UN=%D0%9B%D0%B5%D0%B1%D0%B5%D0%B4%D0%B5%D0%B2%D0%A4&PW=a8bb177e0d&lt=774865473&pw2=a8bb177e0dae8be25c8f3a3322e034da&ver=709065510' \
-	params := c.AuthParams.GetUrlValues(&authData)
+	params := c.AuthParams.GetUrlValues(authData.Salt, authData.Lt, authData.Ver)
 	req, err = http.NewRequest("POST",
 		fmt.Sprintf("%s/webapi/login", c.BaseUrl),
 		strings.NewReader(params.Encode()),
@@ -441,13 +413,13 @@ func (c *ClientApi) DoAuthV5() error {
 	if err != nil {
 		return fmt.Errorf("GetAuthData: %+v", err)
 	}
-	md5Password := MD5(authData.Salt + MD5(c.AuthParams.Password))
+	md5Password := constants.MD5(authData.Salt + constants.MD5(c.AuthParams.PW))
 	authDataLt, _ := strconv.Atoi(authData.Lt)
 	authDataVer, _ := strconv.Atoi(authData.Ver)
-	login, _, err := c.WebApi.LoginApi.Login(ctx, c.AuthParams.LoginType,
+	login, _, err := c.WebApi.LoginApi.Login(ctx, constants.NetCityAuthLoginType,
 		c.AuthParams.Cid, c.AuthParams.Sid,
 		c.AuthParams.Pid, c.AuthParams.Cn, c.AuthParams.Sft,
-		c.AuthParams.Scid, c.AuthParams.Username, md5Password[:len(c.AuthParams.Password)],
+		c.AuthParams.Scid, c.AuthParams.UN, md5Password[:len(c.AuthParams.PW)],
 		int32(authDataLt),
 		md5Password, int32(authDataVer),
 	)
@@ -458,7 +430,7 @@ func (c *ClientApi) DoAuthV5() error {
 	return nil
 }
 
-func NewClientApi(url string, authParams *AuthParams) (c *ClientApi, err error) {
+func NewClientApi(url string, authParams *netcity_pb.AuthParam) (c *ClientApi, err error) {
 	cookieJar, _ := cookiejar.New(nil)
 	httpClient := http.Client{
 		Timeout:   time.Minute,
