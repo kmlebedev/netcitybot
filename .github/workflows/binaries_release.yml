@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v2.5.0
 
       - name: Go Release server
-        uses: wangyoucao577/go-release-actionv1.33
+        uses: wangyoucao577/go-release-action@v1.33
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
