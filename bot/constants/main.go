@@ -30,6 +30,7 @@ const (
 	EnvKeyRedisPassword   = "REDIS_PASSWORD"
 	EnvKeyBoltDBPath      = "BOLT_DB_PATH"
 
+	BtTypeStudent  = "student"
 	BtTypeState    = "st"
 	BtTypeProvince = "pr"
 	BtTypeCity     = "ct"

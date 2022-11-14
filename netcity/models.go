@@ -3,7 +3,69 @@ package netcity
 import (
 	"fmt"
 	"github.com/goodsign/monday"
+	swagger "github.com/kmlebedev/netSchoolWebApi/go"
 )
+
+type CountryLoginData struct {
+	Id    int32
+	Name  string
+	UrlId uint64
+}
+
+type StateLoginData struct {
+	Id    int32
+	Name  string
+	UrlId uint64
+}
+
+type ProvinceLoginData struct {
+	Id    int32
+	Name  string
+	UrlId uint64
+	State *StateLoginData
+}
+
+type CityLoginData struct {
+	Id       int32
+	Name     string
+	UrlId    uint64
+	Province *ProvinceLoginData
+}
+
+type SchoolLoginData struct {
+	Id       int32
+	Name     string
+	Num      int32
+	UrlId    uint64
+	Sft      int32
+	Country  *CountryLoginData
+	State    *StateLoginData
+	Province *ProvinceLoginData
+	City     *CityLoginData
+}
+
+type User struct {
+	NetCityApi         *ClientApi
+	Marks              map[int]AssignmentMark
+	Assignments        map[int]DiaryAssignmentDetail
+	DiaryInit          swagger.StudentDiaryInit
+	School             *SchoolLoginData
+	NetCityUrl         string
+	UserName           string
+	Password           string
+	StateName          string
+	ProvinceName       string
+	CityName           string
+	SchoolName         string
+	CityId             int32
+	SchoolId           int
+	SentMsgLastId      int
+	ReqNameMsgId       int
+	ReqPasswdMsgId     int
+	TrackMarksCn       chan bool
+	TrackAssignmentsCn chan bool
+	Valid              bool
+}
 
 type errorResponse struct {
 	Code    int    `json:"code"`

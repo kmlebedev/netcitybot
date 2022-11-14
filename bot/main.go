@@ -6,57 +6,19 @@ import (
 	. "github.com/kmlebedev/netcitybot/bot/constants"
 	"github.com/kmlebedev/netcitybot/bot/storage"
 	"github.com/kmlebedev/netcitybot/netcity"
-	netcity_pb "github.com/kmlebedev/netcitybot/pb/netcity"
 	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
 	"sync"
 )
 
-type User struct {
-	NetCityConfig  *netcity.Config
-	NetCityApi     *netcity.ClientApi
-	Marks          map[int]netcity.AssignmentMark
-	School         *SchoolLoginData
-	NetCityUrl     string
-	UserName       string
-	Password       string
-	StateName      string
-	ProvinceName   string
-	CityName       string
-	SchoolName     string
-	CityId         int32
-	SchoolId       int
-	SentMsgLastId  int
-	ReqNameMsgId   int
-	ReqPasswdMsgId int
-	TrackMarksCn   chan bool
-	Valid          bool
-}
-
-func (u *User) GetAuthParam() *netcity_pb.AuthParam {
-	if u.School == nil {
-		return nil
-	}
-	return &netcity_pb.AuthParam{
-		Cid:  u.School.Country.Id,
-		Scid: u.School.Id,
-		Pid:  u.School.Province.Id,
-		Cn:   u.School.City.Id,
-		Sft:  u.School.Sft,
-		Sid:  u.School.State.Id,
-		UN:   u.UserName,
-		PW:   u.Password,
-	}
-}
-
 var (
-	ChatUsers     = make(map[int64]*User)
+	ChatUsers     = make(map[int64]*netcity.User)
 	ChatNetCityDb storage.StorageMap
 	ChatUsersLock = sync.RWMutex{}
 )
 
-func GetChatUser(chatId int64) *User {
+func GetChatUser(chatId int64) *netcity.User {
 	ChatUsersLock.RLock()
 	_, ok := ChatUsers[chatId]
 	ChatUsersLock.RUnlock()
@@ -66,10 +28,10 @@ func GetChatUser(chatId int64) *User {
 	return NewChatUser(chatId)
 }
 
-func NewChatUser(chatId int64) *User {
+func NewChatUser(chatId int64) *netcity.User {
 	ChatUsersLock.Lock()
 	defer ChatUsersLock.Unlock()
-	ChatUsers[chatId] = &User{}
+	ChatUsers[chatId] = &netcity.User{}
 	return ChatUsers[chatId]
 }
 
@@ -93,7 +55,7 @@ func GetLoginWebApi(chatId int64) *netcity.ClientApi {
 	return nil
 }
 
-func trackMarks(login *User) (string, error) {
+func trackMarks(login *netcity.User) (string, error) {
 	var msg string
 	marks, err := login.NetCityApi.GetLessonAssignmentMarks()
 	if err != nil {
@@ -134,7 +96,7 @@ func GetUpdates(bot *tgbotapi.BotAPI, chatNetCityDb storage.StorageMap) {
 		switch {
 		// Обработка Inline кнопок
 		case update.CallbackQuery != nil:
-			ProcessCallbackQuery(update, &msg)
+			ProcessCallbackQuery(update, &msg, bot)
 		// Обработка сообщений
 		case update.Message != nil:
 			msg.ChatID = update.Message.Chat.ID

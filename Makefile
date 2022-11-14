@@ -20,4 +20,4 @@ redis:
 	docker-compose -f docker/docker-compose-redis-only.yml up
 
 dev_redis: dev
-	docker-compose --env-file .env -f docker/docker-compose-dev.yml up
+	docker-compose --env-file .env.cap -f docker/docker-compose-dev.yml up

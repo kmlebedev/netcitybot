@@ -167,8 +167,12 @@ func main() {
 		pullStudentIds := GetPullStudentIds()
 		// sync assignments details with attachments to telegram
 		if botChatId != 0 && len(pullStudentIds) > 0 {
-			assignments := map[int]netcity.DiaryAssignmentDetail{}
-			go netcityApi.LoopPullingOrder(300, botApi, botChatId, CurrentyYearId(netcityApi), &assignments, &pullStudentIds)
+			user := netcity.User{
+				Assignments:        map[int]netcity.DiaryAssignmentDetail{},
+				TrackAssignmentsCn: make(chan bool),
+				NetCityApi:         netcityApi,
+			}
+			go netcityApi.LoopPullingOrder(300, botApi, botChatId, &pullStudentIds, &user)
 		}
 		DoSync(netcityApi)
 	}

@@ -65,22 +65,27 @@ BOT_API_TOKEN=xxxxxxxxxxxxxxxxx" > .env_chat
 docker-compose --env-file .env_chat -f docker-compose.yml up -d
 ```
 
-# Доккументация по публичному Web API NetSchool
-All URIs are relative to *https://virtserver.swaggerhub.com/LEBEDEVKM/NetSchool/5.10.63221*
+4. Доступные команды
 
-Class | Method                                                                                     | HTTP request | Description
------------- |--------------------------------------------------------------------------------------------| ------------- | -------------
-*AssignmentApi* | [**AssignmentTypes**](/kmlebedev/NetSchoolWebApi/go/docs/AssignmentApi.md#assignmenttypes) | **Get** /grade/assignment/types |
-*DiaryApi* | [**DiaryAssignnDetails**](/kmlebedev/NetSchoolWebApi/go/docs/DiaryApi.md#diaryassignndetails)                            | **Get** /student/diary/assigns/{assignId} |
-*LoginApi* | [**Getauthdata**](/kmlebedev/NetSchoolWebApi/go/docs/LoginApi.md#getauthdata)                                            | **Get** /auth/getdata |
-*LoginApi* | [**Login**](/kmlebedev/NetSchoolWebApi/go/docs/LoginApi.md#login)                                                        | **Post** /login |
-*LoginApi* | [**Logindata**](/kmlebedev/NetSchoolWebApi/go/docs/LoginApi.md#logindata)                                                | **Get** /logindata |
-*LoginApi* | [**Prepareemloginform**](/kmlebedev/NetSchoolWebApi/go/docs/LoginApi.md#prepareemloginform)                              | **Get** /prepareemloginform |
-*LoginApi* | [**Prepareloginform**](/kmlebedev/NetSchoolWebApi/go/docs/LoginApi.md#prepareloginform)                                  | **Get** /prepareloginform |
-*MysettingsApi* | [**Mysettings**](/kmlebedev/NetSchoolWebApi/go/docs/MysettingsApi.md#mysettings)                                         | **Get** /mysettings |
-*MysettingsApi* | [**Yearlist**](/kmlebedev/NetSchoolWebApi/go/docs/MysettingsApi.md#yearlist)                                             | **Get** /mysettings/yearlist |
-*StudentApi* | [**StudentDiary**](/kmlebedev/NetSchoolWebApi/go/docs/StudentApi.md#studentdiary)                                        | **Get** /student/diary |
-*StudentApi* | [**StudentDiaryInit**](/kmlebedev/NetSchoolWebApi/go/docs/StudentApi.md#studentdiaryinit)                                | **Get** /student/diary/init |
+`/track_marks`      - Отслеживание отметок
+`/subs_assignments` - Пересылка заданий
+
+# Доккументация по публичному Web API NetSchool
+All URIs are relative to *https://app.swaggerhub.com/apis/LEBEDEVKM/NetSchool/5.10.63221*
+
+Class | Method                                                                                                                    | HTTP request | Description
+------------ |---------------------------------------------------------------------------------------------------------------------------| ------------- | -------------
+*AssignmentApi* | [**AssignmentTypes**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/AssignmentApi.md#assignmenttypes)    | **Get** /grade/assignment/types |
+*DiaryApi* | [**DiaryAssignnDetails**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/DiaryApi.md#diaryassignndetails) | **Get** /student/diary/assigns/{assignId} |
+*LoginApi* | [**Getauthdata**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/LoginApi.md#getauthdata)                 | **Get** /auth/getdata |
+*LoginApi* | [**Login**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/LoginApi.md#login)                             | **Post** /login |
+*LoginApi* | [**Logindata**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/LoginApi.md#logindata)                     | **Get** /logindata |
+*LoginApi* | [**Prepareemloginform**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/LoginApi.md#prepareemloginform)   | **Get** /prepareemloginform |
+*LoginApi* | [**Prepareloginform**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/LoginApi.md#prepareloginform)       | **Get** /prepareloginform |
+*MysettingsApi* | [**Mysettings**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/MysettingsApi.md#mysettings)                                          | **Get** /mysettings |
+*MysettingsApi* | [**Yearlist**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/MysettingsApi.md#yearlist)                                              | **Get** /mysettings/yearlist |
+*StudentApi* | [**StudentDiary**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/StudentApi.md#studentdiary)                                         | **Get** /student/diary |
+*StudentApi* | [**StudentDiaryInit**](https://github.com/kmlebedev/netSchoolWebApi/blob/main/go/docs/StudentApi.md#studentdiaryinit)                                 | **Get** /student/diary/init |
 
 # Todo Публичны бот для всех
 Но ничего не мешает расширить функционал, до общего для всех бота.  Пока план такой.

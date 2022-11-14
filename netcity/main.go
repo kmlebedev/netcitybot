@@ -85,6 +85,7 @@ type ClientApi struct {
 	AuthParams    *netcity_pb.AuthParam
 	HTTPClient    *http.Client
 	At            string
+	AccessToken   string
 	Ver           int
 	Uid           int
 	CurrentYearId int
@@ -102,6 +103,22 @@ type AssignmentMark struct {
 	Mark           int
 	AssignmentName string
 	AssignmentId   int
+}
+
+func (u *User) GetAuthParam() *netcity_pb.AuthParam {
+	if u.School == nil {
+		return nil
+	}
+	return &netcity_pb.AuthParam{
+		Cid:  u.School.Country.Id,
+		Scid: u.School.Id,
+		Pid:  u.School.Province.Id,
+		Cn:   u.School.City.Id,
+		Sft:  u.School.Sft,
+		Sid:  u.School.State.Id,
+		UN:   u.UserName,
+		PW:   u.Password,
+	}
 }
 
 // https://netcity.eimc.ru/doc/%D1%81%D1%81%D1%8B%D0%BB%D0%BA%D0%B0%206%D0%93.docx?at=122637423789174617893268&VER=1606765770504&attachmentId=772789
@@ -380,7 +397,7 @@ func (c *ClientApi) DoAuthV4() error {
 	}
 	loginData := LoginData{}
 	if err := c.sendRequest(req, &loginData); err != nil {
-		log.Warningf("fauled auth req url: %s, params: %+v", req.URL, params)
+		log.Warningf("failed auth req url: %s, params: %+v", req.URL, params)
 		return err
 	}
 	if loginData.At == "" {
@@ -416,17 +433,17 @@ func (c *ClientApi) DoAuthV5() error {
 	md5Password := constants.MD5(authData.Salt + constants.MD5(c.AuthParams.PW))
 	authDataLt, _ := strconv.Atoi(authData.Lt)
 	authDataVer, _ := strconv.Atoi(authData.Ver)
-	login, _, err := c.WebApi.LoginApi.Login(ctx, constants.NetCityAuthLoginType,
+	login, resp, err := c.WebApi.LoginApi.Login(ctx, constants.NetCityAuthLoginType,
 		c.AuthParams.Cid, c.AuthParams.Sid,
 		c.AuthParams.Pid, c.AuthParams.Cn, c.AuthParams.Sft,
 		c.AuthParams.Scid, c.AuthParams.UN, md5Password[:len(c.AuthParams.PW)],
-		int32(authDataLt),
-		md5Password, int32(authDataVer),
+		int32(authDataLt), md5Password, int32(authDataVer),
 	)
 	if err != nil {
-		return fmt.Errorf("loginData: %+v", err)
+		return fmt.Errorf("Login(): %+v, resp: %+v", err, resp)
 	}
 	c.At = login.At
+	c.AccessToken = login.AccessToken
 	return nil
 }
 
@@ -437,7 +454,7 @@ func NewClientApi(url string, authParams *netcity_pb.AuthParam) (c *ClientApi, e
 		Jar:       cookieJar,
 		Transport: http.DefaultTransport,
 	}
-	webApi := swagger.NewAPIClient(&swagger.Configuration{
+	webApiCfg := swagger.Configuration{
 		BasePath: url + "/webapi",
 		DefaultHeader: map[string]string{
 			"Referer":          url + "/",
@@ -445,9 +462,9 @@ func NewClientApi(url string, authParams *netcity_pb.AuthParam) (c *ClientApi, e
 			"Accept":           "application/json, text/javascript, */*; q=0.01",
 		},
 		HTTPClient: &httpClient,
-	})
+	}
 	c = &ClientApi{
-		WebApi:     webApi,
+		WebApi:     swagger.NewAPIClient(&webApiCfg),
 		AuthParams: authParams,
 		BaseUrl:    url,
 		HTTPClient: &httpClient,
@@ -455,13 +472,16 @@ func NewClientApi(url string, authParams *netcity_pb.AuthParam) (c *ClientApi, e
 		Classes:    map[string]int32{},
 		Students:   map[StudentId]string{},
 	}
-	loginData, _, err := webApi.LoginApi.Logindata(ctx)
+	loginData, _, err := c.WebApi.LoginApi.Logindata(ctx)
+	if err != nil {
+		log.Warningf("Logindata(): %+v", err)
+	}
 
 	c.DoAuth = c.DoAuthV5
 	isWebApiV4 := false
-	if err != nil || loginData.Version != "" || strings.Split(loginData.Version, ".")[0] != "5" {
+	if err != nil || !strings.Contains(loginData.Version, ".") || strings.Split(loginData.Version, ".")[0] != "5" {
 		c.DoAuth = c.DoAuthV4
-		isWebApiV4 = false
+		isWebApiV4 = true
 	}
 	if err := c.DoAuth(); err != nil {
 		return nil, fmt.Errorf("DoAuth: %+v", err)
@@ -469,7 +489,10 @@ func NewClientApi(url string, authParams *netcity_pb.AuthParam) (c *ClientApi, e
 	if isWebApiV4 {
 		return c, nil
 	}
-	years, _, err := webApi.MysettingsApi.Yearlist(ctx, c.At)
+	if c.AccessToken != "" {
+		webApiCfg.AddDefaultHeader("Authorization", "Bearer "+c.AccessToken)
+	}
+	years, _, err := c.WebApi.MysettingsApi.Yearlist(ctx, c.At)
 	if err != nil {
 		return nil, fmt.Errorf("Yearlist: %+v", err)
 	}
@@ -660,7 +683,9 @@ func (c *ClientApi) GetLessonAssignmentMarks() (assignmentMarks map[int]Assignme
 	return assignmentMarks, nil
 }
 
-func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, yearId int, assignments *map[int]DiaryAssignmentDetail, studentIds *[]int) {
+func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, studentIds *[]int, botUser *User) {
+	yearId := botUser.NetCityApi.CurrentYearId
+	botUser.Assignments = map[int]DiaryAssignmentDetail{}
 	log.Infof("LoopPullingOrder chatId: %+v, yearId: %+v", chatId, yearId)
 	if intervalSeconds == 0 || bot == nil || chatId == 0 || yearId == 0 || studentIds == nil || len(*studentIds) == 0 {
 		return
@@ -669,70 +694,80 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 	var errInLoop error
 	backOff := 0
 	for {
-		for _, studentId := range *studentIds {
-			currentTime := time.Now()
-			weekStrat := currentTime.AddDate(0, 0, -8)
-			weekEnd := currentTime.AddDate(0, 0, 8)
-			newAssignments, err := c.GetAssignments(
-				studentId,
-				weekStrat.Format("2006-01-02"),
-				weekEnd.Format("2006-01-02"),
-				false,
-				false,
-				yearId,
-			)
-			if err != nil {
-				log.Error("GetAssignments: ", err)
-				errInLoop = err
-				break
+		select {
+		case <-botUser.TrackAssignmentsCn:
+			botUser.Assignments = nil
+			if _, err := bot.Send(tgbotapi.NewMessage(chatId,
+				fmt.Sprintf("Отключена пересылка заданий"))); err != nil {
+				log.Warningf("bot.Send: %+v", err)
 			}
-			for _, weekday := range newAssignments.WeekDays {
-				for _, lesson := range weekday.Lessons {
-					if lesson.Assignments == nil {
-						continue
-					}
-					for _, assignment := range lesson.Assignments {
-						if assignment.AssignmentName == "" {
+			return
+		default:
+			for _, studentId := range *studentIds {
+				currentTime := time.Now()
+				weekStrat := currentTime.AddDate(0, 0, -8)
+				weekEnd := currentTime.AddDate(0, 0, 8)
+				newAssignments, err := c.GetAssignments(
+					studentId,
+					weekStrat.Format("2006-01-02"),
+					weekEnd.Format("2006-01-02"),
+					false,
+					false,
+					yearId,
+				)
+				if err != nil {
+					log.Error("GetAssignments: ", err)
+					errInLoop = err
+					break
+				}
+				for _, weekday := range newAssignments.WeekDays {
+					for _, lesson := range weekday.Lessons {
+						if lesson.Assignments == nil {
 							continue
 						}
-						// Ответ на уроке
-						if assignment.TypeId == 10 {
-							continue
+						for _, assignment := range lesson.Assignments {
+							if assignment.AssignmentName == "" {
+								continue
+							}
+							// Ответ на уроке
+							if assignment.TypeId == 10 {
+								continue
+							}
+							assignmentDetail, err := c.GetAssignmentDetail(assignment.Id, studentId)
+							if err != nil {
+								log.Error(err)
+								continue
+							}
+							assignmentDetailSaved, found := botUser.Assignments[assignment.Id]
+							if found && reflect.DeepEqual(assignmentDetailSaved, *assignmentDetail) {
+								continue
+							}
+							botUser.Assignments[assignment.Id] = *assignmentDetail
+							log.Debugf("new assignmentDetail %+v", *assignmentDetail)
+							if isFirstRun || time.Now().Unix() > assignmentDetail.Date.Unix() {
+								continue
+							}
+							msgId := c.botSentNotify(
+								bot,
+								chatId,
+								c.GetSentMessageId(assignment.Id),
+								lesson.DayString()+assignmentDetail.String(c),
+								assignmentDetail.GetAttachmentsUrls(c),
+							)
+							c.AddSentMessageId(msgId, assignment.Id)
 						}
-						assignmentDetail, err := c.GetAssignmentDetail(assignment.Id, studentId)
-						if err != nil {
-							log.Error(err)
-							continue
-						}
-						assignmentDetailSaved, found := (*assignments)[assignment.Id]
-						if found && reflect.DeepEqual(assignmentDetailSaved, *assignmentDetail) {
-							continue
-						}
-						(*assignments)[assignment.Id] = *assignmentDetail
-						log.Debugf("new assignmentDetail %+v", *assignmentDetail)
-						if isFirstRun || time.Now().Unix() > assignmentDetail.Date.Unix() {
-							continue
-						}
-						msgId := c.botSentNotify(
-							bot,
-							chatId,
-							c.GetSentMessageId(assignment.Id),
-							lesson.DayString()+assignmentDetail.String(c),
-							assignmentDetail.GetAttachmentsUrls(c),
-						)
-						c.AddSentMessageId(msgId, assignment.Id)
 					}
 				}
+				backOff = 0
+				time.Sleep(time.Duration(intervalSeconds) * time.Second)
 			}
-			backOff = 0
-			time.Sleep(time.Duration(intervalSeconds) * time.Second)
-		}
-		isFirstRun = false
-		if errInLoop != nil {
-			backOff++
-			waitSeconds := intervalSeconds * backOff
-			log.Warningf("LoopPullingOrder: error is not nil, wait %d seconds ", waitSeconds)
-			time.Sleep(time.Duration(waitSeconds) * time.Second)
+			isFirstRun = false
+			if errInLoop != nil {
+				backOff++
+				waitSeconds := intervalSeconds * backOff
+				log.Warningf("LoopPullingOrder: error is not nil, wait %d seconds ", waitSeconds)
+				time.Sleep(time.Duration(waitSeconds) * time.Second)
+			}
 		}
 	}
 }

@@ -10,7 +10,7 @@ import (
 )
 
 // Обработываем нажания кнопок
-func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfig) {
+func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfig, bot *tgbotapi.BotAPI) {
 	sendMsg.ChatID = update.CallbackQuery.Message.Chat.ID
 	user := GetChatUser(sendMsg.ChatID)
 	sendMsg.Text = update.CallbackQuery.Data
@@ -44,6 +44,24 @@ func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfi
 			}
 			//log.Warningf("%v: school id:%d not found", btTypeLogin, schoolId)
 		}
+
+	case BtTypeStudent: // student:id
+		netCityApi := GetLoginWebApi(sendMsg.ChatID)
+		if netCityApi == nil {
+			sendMsg.Text = "Вы не вошли в дневник"
+			return
+		}
+		if user.Assignments != nil {
+			sendMsg.Text = "Пересылка заданий уже включена"
+			return
+		}
+		if len(dataArr) != 2 {
+			return
+		}
+		studentId, _ := strconv.Atoi(dataArr[1])
+		go netCityApi.LoopPullingOrder(300, bot, sendMsg.ChatID, &[]int{studentId}, user)
+		sendMsg.Text = "Включена пересылка новых заданий"
+
 	default:
 		log.Warningf("callback query data %+v not process", update.CallbackQuery.Data)
 	}

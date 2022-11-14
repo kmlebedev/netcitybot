@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, user *User, netcityApi *netcity.ClientApi) {
+func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, user *netcity.User, netcityApi *netcity.ClientApi) {
 	switch updateMsg.Text {
 	case "diary":
 		sendMsg.ReplyMarkup = tgbotapi.NewReplyKeyboard(

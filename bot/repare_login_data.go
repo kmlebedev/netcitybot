@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/antihax/optional"
 	"github.com/kmlebedev/netSchoolWebApi/go"
+	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/http/cookiejar"
@@ -12,52 +13,14 @@ import (
 	"time"
 )
 
-type CountryLoginData struct {
-	Id    int32
-	Name  string
-	UrlId uint64
-}
-
-type StateLoginData struct {
-	Id    int32
-	Name  string
-	UrlId uint64
-}
-
-type ProvinceLoginData struct {
-	Id    int32
-	Name  string
-	UrlId uint64
-	State *StateLoginData
-}
-
-type CityLoginData struct {
-	Id       int32
-	Name     string
-	UrlId    uint64
-	Province *ProvinceLoginData
-}
-
-type SchoolLoginData struct {
-	Id       int32
-	Name     string
-	Num      int32
-	UrlId    uint64
-	Sft      int32
-	Country  *CountryLoginData
-	State    *StateLoginData
-	Province *ProvinceLoginData
-	City     *CityLoginData
-}
-
 var (
 	ctx         = context.Background()
-	Countries   = []CountryLoginData{}
-	States      = []StateLoginData{}
-	Provinces   = []ProvinceLoginData{}
-	Cities      = []CityLoginData{}
-	Schools     = []SchoolLoginData{}
-	UrlSchools  = make(map[uint64]map[int32]*SchoolLoginData)
+	Countries   = []netcity.CountryLoginData{}
+	States      = []netcity.StateLoginData{}
+	Provinces   = []netcity.ProvinceLoginData{}
+	Cities      = []netcity.CityLoginData{}
+	Schools     = []netcity.SchoolLoginData{}
+	UrlSchools  = make(map[uint64]map[int32]*netcity.SchoolLoginData)
 	NetCityUrls = map[uint64]string{}
 )
 
@@ -92,7 +55,7 @@ func GetSchoolNameAndNum(name string) (string, int32) {
 	return schoolName, 0
 }
 
-func GetsSchoolsLoginForm(webApi *swagger.APIClient, urlId uint64, schoolTpl SchoolLoginData, sft int32) {
+func GetsSchoolsLoginForm(webApi *swagger.APIClient, urlId uint64, schoolTpl netcity.SchoolLoginData, sft int32) {
 	if schoolsLoginForm, _, err := webApi.LoginApi.Loginform(ctx, &swagger.LoginApiLoginformOpts{
 		Cid:      optional.NewInt32(schoolTpl.Country.Id),
 		Sid:      optional.NewInt32(schoolTpl.State.Id),
@@ -103,7 +66,7 @@ func GetsSchoolsLoginForm(webApi *swagger.APIClient, urlId uint64, schoolTpl Sch
 	}); err == nil {
 		for _, schoolForm := range schoolsLoginForm.Items {
 			schoolName, schoolNum := GetSchoolNameAndNum(schoolForm.Name)
-			school := SchoolLoginData{Id: schoolForm.Id, Name: schoolName, Num: schoolNum, UrlId: urlId,
+			school := netcity.SchoolLoginData{Id: schoolForm.Id, Name: schoolName, Num: schoolNum, UrlId: urlId,
 				Country:  schoolTpl.Country,
 				State:    schoolTpl.State,
 				Province: schoolTpl.Province,
@@ -111,7 +74,7 @@ func GetsSchoolsLoginForm(webApi *swagger.APIClient, urlId uint64, schoolTpl Sch
 			}
 			Schools = append(Schools, school)
 			if UrlSchools[urlId] == nil {
-				UrlSchools[urlId] = make(map[int32]*SchoolLoginData)
+				UrlSchools[urlId] = make(map[int32]*netcity.SchoolLoginData)
 			}
 			UrlSchools[urlId][school.Id] = &school
 		}
@@ -136,9 +99,9 @@ func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
 		log.Warningf("prepareLoginForm url %s: %+v", url, err)
 		return
 	}
-	schoolTpl := SchoolLoginData{Sft: prepareLoginForm.Sft}
+	schoolTpl := netcity.SchoolLoginData{Sft: prepareLoginForm.Sft}
 	for _, countryForm := range prepareLoginForm.Countries {
-		country := CountryLoginData{Id: countryForm.Id, Name: countryForm.Name, UrlId: urlId}
+		country := netcity.CountryLoginData{Id: countryForm.Id, Name: countryForm.Name, UrlId: urlId}
 		Countries = append(Countries, country)
 		if prepareLoginForm.Cid == country.Id {
 			schoolTpl.Country = &country
@@ -146,7 +109,7 @@ func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
 		}
 	}
 	for _, stateForm := range prepareLoginForm.States {
-		state := StateLoginData{Id: stateForm.Id, Name: stateForm.Name, UrlId: urlId}
+		state := netcity.StateLoginData{Id: stateForm.Id, Name: stateForm.Name, UrlId: urlId}
 		States = append(States, state)
 		if prepareLoginForm.Sid == state.Id {
 			schoolTpl.State = &state
@@ -154,9 +117,9 @@ func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
 		}
 	}
 
-	var schoolTplProvince *ProvinceLoginData
+	var schoolTplProvince *netcity.ProvinceLoginData
 	for _, provinceForm := range prepareLoginForm.Provinces {
-		province := ProvinceLoginData{Id: provinceForm.Id, Name: provinceForm.Name, UrlId: urlId, State: schoolTpl.State}
+		province := netcity.ProvinceLoginData{Id: provinceForm.Id, Name: provinceForm.Name, UrlId: urlId, State: schoolTpl.State}
 		Provinces = append(Provinces, province)
 		schoolTpl.Province = &province
 		if prepareLoginForm.Pid == province.Id {
@@ -171,7 +134,7 @@ func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
 		}); err == nil {
 			for _, cityForm := range citiesLoginForm.Items {
 				cityName := strings.TrimSuffix(cityForm.Name, ", г.")
-				city := CityLoginData{Id: cityForm.Id, Name: cityName, UrlId: urlId, Province: schoolTpl.Province}
+				city := netcity.CityLoginData{Id: cityForm.Id, Name: cityName, UrlId: urlId, Province: schoolTpl.Province}
 				Cities = append(Cities, city)
 				schoolTpl.City = &city
 				GetsSchoolsLoginForm(webApi, urlId, schoolTpl, prepareLoginForm.Sft)
@@ -182,10 +145,10 @@ func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
 	}
 	schoolTpl.Province = schoolTplProvince
 
-	var schoolTplCity *CityLoginData
+	var schoolTplCity *netcity.CityLoginData
 	for _, cityForm := range prepareLoginForm.Cities {
 		cityName := strings.TrimSuffix(cityForm.Name, ", г.")
-		city := CityLoginData{Id: cityForm.Id, Name: cityName, UrlId: urlId, Province: schoolTpl.Province}
+		city := netcity.CityLoginData{Id: cityForm.Id, Name: cityName, UrlId: urlId, Province: schoolTpl.Province}
 		Cities = append(Cities, city)
 		if prepareLoginForm.Cn == city.Id {
 			schoolTplCity = &city
@@ -202,7 +165,7 @@ func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
 
 	for _, schoolForm := range prepareLoginForm.Schools {
 		schoolName, schoolNum := GetSchoolNameAndNum(schoolForm.Name)
-		school := SchoolLoginData{Id: schoolForm.Id, Name: schoolName, Num: schoolNum, UrlId: urlId,
+		school := netcity.SchoolLoginData{Id: schoolForm.Id, Name: schoolName, Num: schoolNum, UrlId: urlId,
 			Country:  schoolTpl.Country,
 			State:    schoolTpl.State,
 			Province: schoolTpl.Province,
@@ -210,7 +173,7 @@ func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
 		}
 		Schools = append(Schools, school)
 		if UrlSchools[urlId] == nil {
-			UrlSchools[urlId] = make(map[int32]*SchoolLoginData)
+			UrlSchools[urlId] = make(map[int32]*netcity.SchoolLoginData)
 		}
 		UrlSchools[urlId][school.Id] = &school
 	}

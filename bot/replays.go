@@ -3,11 +3,31 @@ package bot
 import (
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	swagger "github.com/kmlebedev/netSchoolWebApi/go"
 	. "github.com/kmlebedev/netcitybot/bot/constants"
 	log "github.com/sirupsen/logrus"
 	"sort"
 	"strings"
 )
+
+func ReplySelectStudent(msg *tgbotapi.MessageConfig, students *[]swagger.StudentDiaryInitStudents) {
+	msg.Text = "Выберите ученика"
+	rpKeyboard := tgbotapi.NewInlineKeyboardMarkup()
+	kbButRow := tgbotapi.NewInlineKeyboardRow()
+	textSize := 0
+	for _, student := range *students {
+		if textSize > BtRowMaxSize {
+			rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
+			kbButRow = tgbotapi.NewInlineKeyboardRow()
+			textSize = 0
+		}
+		kbButRow = append(kbButRow, tgbotapi.NewInlineKeyboardButtonData(student.NickName,
+			fmt.Sprintf("%s:%d", BtTypeStudent, student.StudentId)))
+		textSize += len(student.NickName)
+	}
+	rpKeyboard.InlineKeyboard = append(rpKeyboard.InlineKeyboard, kbButRow)
+	msg.ReplyMarkup = rpKeyboard
+}
 
 func ReplySelectState(msg *tgbotapi.MessageConfig) {
 	msg.Text = "Выберите ваш регион"

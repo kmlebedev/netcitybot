@@ -1,9 +1,12 @@
 package bot
 
 import (
+	"context"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	"time"
 )
 
@@ -38,6 +41,36 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 
 	case "start":
 		Login(sendMsg)
+
+	case "subs_assignments":
+		if user.Assignments != nil {
+			sendMsg.Text = ""
+			if user.TrackAssignmentsCn != nil {
+				user.TrackAssignmentsCn <- true
+			}
+			return
+		}
+		var err error
+		var resp *http.Response
+		user.DiaryInit, resp, err = netCityApi.WebApi.StudentApi.StudentDiaryInit(context.Background())
+		if err != nil {
+			sendMsg.Text = "Что то пошло не так с инициализацией дневника"
+			log.Errorf("subs_assignments/StudentDiaryInit: %+v, resp: %+v", err, *resp)
+			return
+		}
+		var pullStudentIds []int
+		for _, student := range user.DiaryInit.Students {
+			pullStudentIds = append(pullStudentIds, int(student.StudentId))
+		}
+		user.TrackAssignmentsCn = make(chan bool)
+		if len(user.DiaryInit.Students) == 1 {
+			go netCityApi.LoopPullingOrder(300, bot, sendMsg.ChatID, &[]int{int(user.DiaryInit.Students[0].StudentId)}, user)
+			sendMsg.Text = "Включена пересылка новых заданий"
+		} else if len(user.DiaryInit.Students) > 1 {
+			ReplySelectStudent(sendMsg, &user.DiaryInit.Students)
+		} else {
+			sendMsg.Text = "Дневник не найден"
+		}
 	case "track_marks":
 		if user.Marks != nil {
 			sendMsg.Text = ""
@@ -54,7 +87,7 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 		}
 		sendMsg.Text = fmt.Sprintf("Включено отслеживание отметок")
 		user.TrackMarksCn = make(chan bool)
-		go func(chatID int64, bot *tgbotapi.BotAPI, login *User) {
+		go func(chatID int64, bot *tgbotapi.BotAPI, login *netcity.User) {
 			tick := time.Tick(time.Duration(5) * time.Minute)
 			for {
 				select {
@@ -67,7 +100,10 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 					return
 				case <-tick:
 					if msg, err := trackMarks(login); err == nil && msg != "" {
-						if _, err = bot.Send(tgbotapi.NewMessage(chatID, msg)); err != nil {
+						tgMsg := tgbotapi.NewMessage(chatID, msg)
+						tgMsg.DisableWebPagePreview = true
+						tgMsg.ParseMode = "markdown"
+						if _, err = bot.Send(tgMsg); err != nil {
 							log.Warningf("bot.Send: %+v", err)
 						}
 					}
