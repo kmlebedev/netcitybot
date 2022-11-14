@@ -1,7 +1,12 @@
 FROM golang:1.19-alpine as builder
 
-COPY ./ /go/src/github.com/kmlebedev/netcitybot/
+RUN mkdir -p /go/src/github.com/kmlebedev/netcitybot
 WORKDIR /go/src/github.com/kmlebedev/netcitybot
+
+COPY *.go ./go.mod ./go.sum ./
+COPY ./bot ./bot
+COPY ./netcity ./netcity
+COPY ./pb ./pb
 
 RUN CGO_ENABLED=0 GOOS=linux go install
 
