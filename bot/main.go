@@ -18,32 +18,32 @@ var (
 	ChatUsersLock = sync.RWMutex{}
 )
 
-func GetChatUser(chatId int64) *netcity.User {
+func GetChatUser(fromId int64) *netcity.User {
 	ChatUsersLock.RLock()
-	_, ok := ChatUsers[chatId]
+	_, ok := ChatUsers[fromId]
 	ChatUsersLock.RUnlock()
 	if ok {
-		return ChatUsers[chatId]
+		return ChatUsers[fromId]
 	}
-	return NewChatUser(chatId)
+	return NewChatUser(fromId)
 }
 
-func NewChatUser(chatId int64) *netcity.User {
+func NewChatUser(fromId int64) *netcity.User {
 	ChatUsersLock.Lock()
 	defer ChatUsersLock.Unlock()
-	ChatUsers[chatId] = &netcity.User{}
-	return ChatUsers[chatId]
+	ChatUsers[fromId] = &netcity.User{}
+	return ChatUsers[fromId]
 }
 
-func GetLoginWebApi(chatId int64) *netcity.ClientApi {
-	user := GetChatUser(chatId)
+func GetLoginWebApi(fromId int64) *netcity.ClientApi {
+	user := GetChatUser(fromId)
 	if user == nil {
 		return nil
 	}
 	if user.NetCityApi != nil {
 		return user.NetCityApi
 	}
-	if userLoginData := ChatNetCityDb.GetUserLoginData(chatId); userLoginData != nil {
+	if userLoginData := ChatNetCityDb.GetUserLoginData(fromId); userLoginData != nil {
 		clientApi, err := netcity.NewClientApi(NetCityUrls[uint64(userLoginData.UrlId)], userLoginData)
 		if err != nil || clientApi == nil {
 			log.Errorf("netcity.NewClientApi: %v", err)
@@ -105,8 +105,8 @@ func GetUpdates(bot *tgbotapi.BotAPI, chatNetCityDb storage.StorageMap) {
 			case update.Message.Command() != "":
 				ProcessCommand(update.Message, &msg, bot)
 			case update.Message.Text != "":
-				user := GetChatUser(update.Message.Chat.ID)
-				netCityApi := GetLoginWebApi(update.Message.Chat.ID)
+				user := GetChatUser(update.Message.From.ID)
+				netCityApi := GetLoginWebApi(update.Message.From.ID)
 				if update.Message.Chat.IsPrivate() && netCityApi == nil {
 					ProcessTextPrivate(update.Message, &msg, user)
 				} else if netCityApi != nil {
@@ -124,7 +124,7 @@ func GetUpdates(bot *tgbotapi.BotAPI, chatNetCityDb storage.StorageMap) {
 			if sentMsg.Chat == nil {
 				return
 			}
-			if user := GetChatUser(sentMsg.Chat.ID); user != nil {
+			if user := GetChatUser(update.Message.From.ID); user != nil {
 				user.SentMsgLastId = sentMsg.MessageID
 				if strings.HasPrefix(sentMsg.Text, MsgReqLogin) {
 					user.ReqNameMsgId = sentMsg.MessageID

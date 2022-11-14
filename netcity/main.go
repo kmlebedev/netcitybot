@@ -686,7 +686,7 @@ func (c *ClientApi) GetLessonAssignmentMarks() (assignmentMarks map[int]Assignme
 func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, studentIds *[]int, botUser *User) {
 	yearId := botUser.NetCityApi.CurrentYearId
 	botUser.Assignments = map[int]DiaryAssignmentDetail{}
-	log.Infof("LoopPullingOrder chatId: %+v, yearId: %+v", chatId, yearId)
+	log.Infof("LoopPullingOrder chatId: %+v, yearId: %+v, studentIds: %+v", chatId, yearId, studentIds)
 	if intervalSeconds == 0 || bot == nil || chatId == 0 || yearId == 0 || studentIds == nil || len(*studentIds) == 0 {
 		return
 	}

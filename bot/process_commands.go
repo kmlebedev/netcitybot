@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-func Login(sendMsg *tgbotapi.MessageConfig) {
-	if netCityApi := GetLoginWebApi(sendMsg.ChatID); netCityApi != nil {
+func Login(sendMsg *tgbotapi.MessageConfig, user *netcity.User) {
+	if user.NetCityApi != nil {
 		sendMsg.Text = "Вы уже вошли в дневник"
 		return
 	}
@@ -25,12 +25,12 @@ func Login(sendMsg *tgbotapi.MessageConfig) {
 }
 
 func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, bot *tgbotapi.BotAPI) {
-	netCityApi := GetLoginWebApi(sendMsg.ChatID)
+	netCityApi := GetLoginWebApi(updateMsg.From.ID)
 	if netCityApi == nil && updateMsg.Command() != "start" {
 		sendMsg.Text = "Вы не вошли в дневник"
 		return
 	}
-	user := GetChatUser(sendMsg.ChatID)
+	user := GetChatUser(updateMsg.From.ID)
 	switch updateMsg.Command() {
 	case "contacts":
 		if mobilePhone, email, err := netCityApi.GetContacts(); err == nil {
@@ -40,7 +40,7 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 		}
 
 	case "start":
-		Login(sendMsg)
+		Login(sendMsg, user)
 
 	case "subs_assignments":
 		if user.Assignments != nil {
@@ -115,7 +115,7 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 		sendMsg.Text = fmt.Sprintf("И тебе привет %s", user.UserName)
 	case "login":
 		sendMsg.Text = "login"
-		Login(sendMsg)
+		Login(sendMsg, user)
 	case "logout":
 		netCityApi.Logout()
 		sendMsg.Text = "logout"

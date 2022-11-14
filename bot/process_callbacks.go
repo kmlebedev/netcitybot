@@ -12,7 +12,7 @@ import (
 // Обработываем нажания кнопок
 func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfig, bot *tgbotapi.BotAPI) {
 	sendMsg.ChatID = update.CallbackQuery.Message.Chat.ID
-	user := GetChatUser(sendMsg.ChatID)
+	user := GetChatUser(update.Message.From.ID)
 	sendMsg.Text = update.CallbackQuery.Data
 	dataArr := strings.Split(update.CallbackQuery.Data, ":")
 	switch dataArr[0] { // Button Data Type
@@ -25,10 +25,8 @@ func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfi
 		ReplySelectCity(sendMsg, dataArr[1])
 
 	case BtTypeCity: // city:name Нажатие на кнопку города
-		if _, ok := ChatUsers[sendMsg.ChatID]; ok {
-			ChatUsers[sendMsg.ChatID].CityName = dataArr[1]
-			ReplySelectSchool(sendMsg, dataArr[1])
-		}
+		user.CityName = dataArr[1]
+		ReplySelectSchool(sendMsg, dataArr[1])
 
 	case BtTypeSchool: // school:id Нажатие на кномку школы
 		if len(dataArr) != 3 {
@@ -36,17 +34,13 @@ func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfi
 		}
 		urlId, _ := strconv.Atoi(dataArr[1])
 		schoolId, _ := strconv.Atoi(dataArr[2])
-		if _, ok := ChatUsers[sendMsg.ChatID]; ok {
-			// Todo avoid data race
-			if school := UrlSchools[uint64(urlId)][int32(schoolId)]; school != nil {
-				user.School = school
-				sendMsg.Text = fmt.Sprintf("%s %s", MsgReqLogin, school.Name)
-			}
-			//log.Warningf("%v: school id:%d not found", btTypeLogin, schoolId)
+		if school := UrlSchools[uint64(urlId)][int32(schoolId)]; school != nil {
+			user.School = school
+			sendMsg.Text = fmt.Sprintf("%s %s", MsgReqLogin, school.Name)
 		}
 
 	case BtTypeStudent: // student:id
-		netCityApi := GetLoginWebApi(sendMsg.ChatID)
+		netCityApi := GetLoginWebApi(update.Message.From.ID)
 		if netCityApi == nil {
 			sendMsg.Text = "Вы не вошли в дневник"
 			return
