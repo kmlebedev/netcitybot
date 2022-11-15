@@ -46,7 +46,7 @@ jobs:
         name: Build
         uses: docker/build-push-action@v3.2.0
         with:
-          context: ./docker
+          context: .
           push: ${{ github.event_name != 'pull_request' }}
           file: ./docker/Dockerfile.local_go_build
           platforms: linux/amd64, linux/arm64
