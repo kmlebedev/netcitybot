@@ -124,18 +124,22 @@ func GetUpdates(bot *tgbotapi.BotAPI, chatNetCityDb storage.StorageMap) {
 			if sentMsg.Chat == nil {
 				return
 			}
+			var fromId int64
 			if update.Message != nil && update.Message.From != nil {
-				if user := GetChatUser(update.Message.From.ID); user != nil {
-					user.SentMsgLastId = sentMsg.MessageID
-					if strings.HasPrefix(sentMsg.Text, MsgReqLogin) {
-						user.ReqNameMsgId = sentMsg.MessageID
-					} else if strings.HasPrefix(sentMsg.Text, MsgReqPasswd) {
-						user.ReqPasswdMsgId = sentMsg.MessageID
-					}
-				} else {
-					newUser := NewChatUser(sentMsg.Chat.ID)
-					newUser.SentMsgLastId = sentMsg.MessageID
+				fromId = update.Message.From.ID
+			} else if update.CallbackQuery != nil && update.CallbackQuery.From != nil {
+				fromId = update.CallbackQuery.From.ID
+			}
+			if user := GetChatUser(fromId); fromId != 0 && user != nil {
+				user.SentMsgLastId = sentMsg.MessageID
+				if strings.HasPrefix(sentMsg.Text, MsgReqLogin) {
+					user.ReqNameMsgId = sentMsg.MessageID
+				} else if strings.HasPrefix(sentMsg.Text, MsgReqPasswd) {
+					user.ReqPasswdMsgId = sentMsg.MessageID
 				}
+			} else {
+				newUser := NewChatUser(sentMsg.Chat.ID)
+				newUser.SentMsgLastId = sentMsg.MessageID
 			}
 		}
 	}

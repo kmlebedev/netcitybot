@@ -138,7 +138,7 @@ func ReplySelectCity(msg *tgbotapi.MessageConfig, provinceName string) {
 
 // Формируем кнопки Школ
 func ReplySelectSchool(msg *tgbotapi.MessageConfig, cityName string) {
-	msg.Text = "Выберите ваш номер школы"
+	msg.Text = fmt.Sprintf("Выберите ваш номер школы в населённом пункте %s", cityName)
 	rpKeyboard := tgbotapi.NewInlineKeyboardMarkup()
 	kbButRow := tgbotapi.NewInlineKeyboardRow()
 	textSize := 0
