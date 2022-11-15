@@ -21,3 +21,6 @@ redis:
 
 dev_redis: dev
 	docker-compose --env-file .env.cap -f docker/docker-compose-dev.yml up
+
+buildx:
+	docker buildx build --platform linux/arm64,linux/amd64 -t kmlebedev/netcitybot:latest -f docker/Dockerfile.local_go_build . --push

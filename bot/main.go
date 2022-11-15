@@ -124,16 +124,18 @@ func GetUpdates(bot *tgbotapi.BotAPI, chatNetCityDb storage.StorageMap) {
 			if sentMsg.Chat == nil {
 				return
 			}
-			if user := GetChatUser(update.Message.From.ID); user != nil {
-				user.SentMsgLastId = sentMsg.MessageID
-				if strings.HasPrefix(sentMsg.Text, MsgReqLogin) {
-					user.ReqNameMsgId = sentMsg.MessageID
-				} else if strings.HasPrefix(sentMsg.Text, MsgReqPasswd) {
-					user.ReqPasswdMsgId = sentMsg.MessageID
+			if update.Message != nil && update.Message.From != nil {
+				if user := GetChatUser(update.Message.From.ID); user != nil {
+					user.SentMsgLastId = sentMsg.MessageID
+					if strings.HasPrefix(sentMsg.Text, MsgReqLogin) {
+						user.ReqNameMsgId = sentMsg.MessageID
+					} else if strings.HasPrefix(sentMsg.Text, MsgReqPasswd) {
+						user.ReqPasswdMsgId = sentMsg.MessageID
+					}
+				} else {
+					newUser := NewChatUser(sentMsg.Chat.ID)
+					newUser.SentMsgLastId = sentMsg.MessageID
 				}
-			} else {
-				newUser := NewChatUser(sentMsg.Chat.ID)
-				newUser.SentMsgLastId = sentMsg.MessageID
 			}
 		}
 	}
