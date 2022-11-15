@@ -24,11 +24,11 @@ BOT_CHAT_ID=170000000           # Чат класса для пересылки 
 2. Скачать и запустить приложение
 Для получение бинаря для Linux в терминале выполняем:
 ```
-curl -sL https://github.com/kmlebedev/netcitybot/releases/download/v0.0.6/netcitybot_linux_amd64.tar.gz | tar -xvz
+curl -sL https://github.com/kmlebedev/netcitybot/releases/download/v0.0.12/netcitybot_linux_amd64.tar.gz | tar -xvz
 ```
 Для получение бинаря для Windows в PowerShell выполняем:
 ```
-(New-Object System.Net.WebClient).DownloadFile("https://github.com/kmlebedev/netcitybot/releases/download/v0.0.6/netcitybot_windows_amd64.zip", "c:\temp\netcitybot.tar.gz")
+(New-Object System.Net.WebClient).DownloadFile("https://github.com/kmlebedev/netcitybot/releases/download/v0.0.12/netcitybot_windows_amd64.zip", "c:\temp\netcitybot.tar.gz")
 ```
 Для получения и запуска докер образа необходимо сохранить переменно окруюение выше в файл ./netcity_env
 ```
@@ -62,7 +62,7 @@ BOT_API_TOKEN=xxxxxxxxxxxxxxxxx" > .env_chat
 
 3. Запустить сервис:
 ```bash
-docker-compose --env-file .env_chat -f docker-compose.yml up -d
+docker compose --env-file .env_chat -f docker-compose.yml up -d
 ```
 
 4. Доступные команды

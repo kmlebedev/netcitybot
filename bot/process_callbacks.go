@@ -12,7 +12,7 @@ import (
 // Обработываем нажания кнопок
 func ProcessCallbackQuery(update tgbotapi.Update, sendMsg *tgbotapi.MessageConfig, bot *tgbotapi.BotAPI) {
 	sendMsg.ChatID = update.CallbackQuery.Message.Chat.ID
-	user := GetChatUser(update.Message.From.ID)
+	user := GetChatUser(update.CallbackQuery.From.ID)
 	sendMsg.Text = update.CallbackQuery.Data
 	dataArr := strings.Split(update.CallbackQuery.Data, ":")
 	switch dataArr[0] { // Button Data Type
