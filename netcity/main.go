@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/antihax/optional"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/goodsign/monday"
 	swagger "github.com/kmlebedev/netSchoolWebApi/go"
 	"github.com/kmlebedev/netcitybot/bot/constants"
 	netcity_pb "github.com/kmlebedev/netcitybot/pb/netcity"
@@ -71,7 +73,7 @@ type AuthParams struct {
 
 type SentMessagesItem struct {
 	MessageId    int
-	AssignmentId int
+	AssignmentId int32
 }
 
 type StudentId struct {
@@ -84,8 +86,9 @@ type ClientApi struct {
 	BaseUrl       string
 	AuthParams    *netcity_pb.AuthParam
 	HTTPClient    *http.Client
-	At            string
-	AccessToken   string
+	DiaryInit     *swagger.StudentDiaryInit
+	At            *string
+	AccessToken   *string
 	Ver           int
 	Uid           int
 	CurrentYearId int
@@ -98,11 +101,11 @@ type ClientApi struct {
 }
 
 type AssignmentMark struct {
-	Day            DateTime
+	Day            time.Time
 	SubjectName    string
-	Mark           int
+	Mark           int32
 	AssignmentName string
-	AssignmentId   int
+	AssignmentId   int32
 }
 
 func (u *User) GetAuthParam() *netcity_pb.AuthParam {
@@ -127,10 +130,10 @@ func (c *ClientApi) GetAttachmentUrl(a *Attachment) string {
 }
 
 func (c *ClientApi) AT() string {
-	if c == nil {
+	if c == nil || c.At == nil {
 		return ""
 	}
-	return c.At
+	return *c.At
 }
 
 func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
@@ -139,8 +142,8 @@ func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
 	req.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
 	if req.Body != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-	} else if c.At != "" {
-		req.Header.Set("at", c.At)
+	} else if c.At != nil {
+		req.Header.Set("at", *c.At)
 	}
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -176,7 +179,7 @@ func (c *ClientApi) DoViewAnnouncements() error {
 	// _, _ = c.HTTPClient.Get(fmt.Sprintf("%s/asp/jumptologin.asp?jmp=/?AL=Y", c.BaseUrl))
 	req, err := http.NewRequest("POST",
 		fmt.Sprintf("%s/asp/Announce/ViewAnnouncements.asp", c.BaseUrl),
-		strings.NewReader(url.Values{"at": {c.At}}.Encode()))
+		strings.NewReader(url.Values{"at": {c.AT()}}.Encode()))
 	req.Header.Set("Referer", c.BaseUrl+"/?AL=Y")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
@@ -218,7 +221,7 @@ func FilterAttrIsMobilePhone(_ int, s *goquery.Selection) bool {
 
 func (c *ClientApi) DoReq(path string, payload *map[string]string) (*http.Response, error) {
 	urlValues := url.Values{
-		"at":  {c.At},
+		"at":  {c.AT()},
 		"VER": {string(rune(c.Ver))},
 	}
 	if payload != nil {
@@ -403,22 +406,11 @@ func (c *ClientApi) DoAuthV4() error {
 	if loginData.At == "" {
 		return fmt.Errorf("empty login data %s", loginData)
 	}
-	c.At = loginData.At
+	c.At = &loginData.At
 	err = c.DoViewAnnouncements()
 	if err != nil {
 		return err
 	}
-	diaryInit := DiaryInit{}
-	req, err = http.NewRequest("GET",
-		fmt.Sprintf("%s/webapi/student/diary/init", c.BaseUrl), nil,
-	)
-	if err != nil {
-		return err
-	}
-	if err := c.sendRequest(req, &diaryInit); err != nil {
-		return err
-	}
-	c.Uid = diaryInit.Students[0].StudentId
 	if c.CurrentYearId, err = c.GetCurrentyYearId(); err != nil {
 		return err
 	}
@@ -442,8 +434,8 @@ func (c *ClientApi) DoAuthV5() error {
 	if err != nil {
 		return fmt.Errorf("Login(): %+v, resp: %+v", err, resp)
 	}
-	c.At = login.At
-	c.AccessToken = login.AccessToken
+	c.At = &login.At
+	c.AccessToken = &login.AccessToken
 	return nil
 }
 
@@ -486,13 +478,23 @@ func NewClientApi(url string, authParams *netcity_pb.AuthParam) (c *ClientApi, e
 	if err := c.DoAuth(); err != nil {
 		return nil, fmt.Errorf("DoAuth: %+v", err)
 	}
+	// req.Header.Set("at", c.At)
+	if c.AccessToken != nil {
+		webApiCfg.AddDefaultHeader("Authorization", "Bearer "+*c.AccessToken)
+	} else if c.At != nil {
+		webApiCfg.AddDefaultHeader("at", c.AT())
+	}
+	diaryInit, resp, err := c.WebApi.StudentApi.StudentDiaryInit(ctx)
+	if err != nil || len(diaryInit.Students) == 0 {
+		return nil, fmt.Errorf("StudentDiaryInit: %+v, resp: %+v", err, *resp)
+	}
+	c.Uid = int(diaryInit.Students[0].StudentId)
+	c.DiaryInit = &diaryInit
+
 	if isWebApiV4 {
 		return c, nil
 	}
-	if c.AccessToken != "" {
-		webApiCfg.AddDefaultHeader("Authorization", "Bearer "+c.AccessToken)
-	}
-	years, _, err := c.WebApi.MysettingsApi.Yearlist(ctx, c.At)
+	years, _, err := c.WebApi.MysettingsApi.Yearlist(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("Yearlist: %+v", err)
 	}
@@ -505,7 +507,7 @@ func NewClientApi(url string, authParams *netcity_pb.AuthParam) (c *ClientApi, e
 	return c, nil
 }
 
-func (c *ClientApi) GetAssignmentDetail(id int, studentId int) (*DiaryAssignmentDetail, error) {
+func (c *ClientApi) GetAssignmentDetail(id int32, studentId int) (*DiaryAssignmentDetail, error) {
 	req, err := http.NewRequest("GET",
 		fmt.Sprintf("%s/webapi/student/diary/assigns/%d?studentId=%d",
 			c.BaseUrl, id, studentId),
@@ -576,7 +578,7 @@ func (c *ClientApi) botSentNotify(bot *tgbotapi.BotAPI, chatId int64, sentMsgId 
 	return message.MessageID
 }
 
-func (c *ClientApi) GetSentMessageId(assignmentId int) int {
+func (c *ClientApi) GetSentMessageId(assignmentId int32) int {
 	for _, sentMsg := range c.SentMessages {
 		if sentMsg.AssignmentId == assignmentId {
 			return sentMsg.MessageId
@@ -585,7 +587,7 @@ func (c *ClientApi) GetSentMessageId(assignmentId int) int {
 	return 0
 }
 
-func (c *ClientApi) AddSentMessageId(msgId int, assignmentId int) {
+func (c *ClientApi) AddSentMessageId(msgId int, assignmentId int32) {
 	if len(c.SentMessages) > 2 {
 		c.SentMessages = c.SentMessages[len(c.SentMessages)-2:]
 	}
@@ -652,40 +654,51 @@ func (a *DiaryAssignmentDetail) String(c *ClientApi) string {
 		description)
 }
 
-func (c *ClientApi) GetLessonAssignmentMarks() (assignmentMarks map[int]AssignmentMark, err error) {
-	currentTime := time.Now()
-	assignments, err := c.GetAssignments(
-		c.Uid,
-		currentTime.AddDate(0, 0, -14).Format("2006-01-02"),
-		currentTime.AddDate(0, 0, 1).Format("2006-01-02"),
-		false,
-		false,
-		c.CurrentYearId,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("GetAssignments: %+v", err)
+func (c *ClientApi) GetStudentsIds() (studentIds []int32) {
+	for _, student := range c.DiaryInit.Students {
+		studentIds = append(studentIds, student.StudentId)
 	}
-	assignmentMarks = make(map[int]AssignmentMark)
-	for _, weekdays := range assignments.WeekDays {
-		for _, lesson := range weekdays.Lessons {
-			for _, assignment := range lesson.Assignments {
-				if assignment.Mark.Mark != 0 {
-					assignmentMarks[assignment.Id] = AssignmentMark{
-						Day:            lesson.Day,
-						SubjectName:    lesson.SubjectName,
-						Mark:           assignment.Mark.Mark,
-						AssignmentName: assignment.AssignmentName,
+	return studentIds
+}
+
+func (c *ClientApi) GetLessonAssignmentMarks(studentIds []int32) (assignmentMarks map[int32]AssignmentMark, err error) {
+	currentTime := time.Now()
+	for _, studentId := range studentIds {
+		assignments, _, err := c.WebApi.StudentApi.StudentDiary(context.Background(), studentId, &swagger.StudentApiStudentDiaryOpts{
+			WeekStart:         optional.NewString(currentTime.AddDate(0, 0, -14).Format("2006-01-02")),
+			WeekEnd:           optional.NewString(currentTime.AddDate(0, 0, 1).Format("2006-01-02")),
+			WithLaAssigns:     optional.NewBool(false),
+			WithPastMandatory: optional.NewBool(false),
+			YearId:            optional.NewInt32(int32(c.CurrentYearId)),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("GetAssignments: %+v", err)
+		}
+		if assignmentMarks == nil {
+			assignmentMarks = make(map[int32]AssignmentMark)
+		}
+		for _, weekdays := range assignments.WeekDays {
+			for _, lesson := range weekdays.Lessons {
+				for _, assignment := range lesson.Assignments {
+					if assignment.Mark != nil && assignment.Mark.Mark != 0 {
+						assignmentMarks[assignment.Id] = AssignmentMark{
+							Day:            StrtoDay(&lesson),
+							SubjectName:    lesson.SubjectName,
+							Mark:           assignment.Mark.Mark,
+							AssignmentName: assignment.AssignmentName,
+						}
 					}
 				}
 			}
 		}
 	}
+
 	return assignmentMarks, nil
 }
 
 func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, chatId int64, studentIds *[]int, botUser *User) {
 	yearId := botUser.NetCityApi.CurrentYearId
-	botUser.Assignments = map[int]DiaryAssignmentDetail{}
+	botUser.Assignments = map[int32]DiaryAssignmentDetail{}
 	log.Infof("LoopPullingOrder chatId: %+v, yearId: %+v, studentIds: %+v", chatId, yearId, studentIds)
 	if intervalSeconds == 0 || bot == nil || chatId == 0 || yearId == 0 || studentIds == nil || len(*studentIds) == 0 {
 		return
@@ -707,14 +720,14 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 				currentTime := time.Now()
 				weekStrat := currentTime.AddDate(0, 0, -8)
 				weekEnd := currentTime.AddDate(0, 0, 8)
-				newAssignments, err := c.GetAssignments(
-					studentId,
-					weekStrat.Format("2006-01-02"),
-					weekEnd.Format("2006-01-02"),
-					false,
-					false,
-					yearId,
-				)
+				newAssignments, _, err := c.WebApi.StudentApi.StudentDiary(context.Background(), int32(studentId),
+					&swagger.StudentApiStudentDiaryOpts{
+						WeekStart:         optional.NewString(weekStrat.Format("2006-01-02")),
+						WeekEnd:           optional.NewString(weekEnd.Format("2006-01-02")),
+						WithLaAssigns:     optional.NewBool(false),
+						WithPastMandatory: optional.NewBool(false),
+						YearId:            optional.NewInt32(int32(yearId)),
+					})
 				if err != nil {
 					log.Error("GetAssignments: ", err)
 					errInLoop = err
@@ -751,7 +764,7 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 								bot,
 								chatId,
 								c.GetSentMessageId(assignment.Id),
-								lesson.DayString()+assignmentDetail.String(c),
+								DayString(&lesson)+assignmentDetail.String(c),
 								assignmentDetail.GetAttachmentsUrls(c),
 							)
 							c.AddSentMessageId(msgId, assignment.Id)
@@ -770,4 +783,16 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 			}
 		}
 	}
+}
+
+func StrtoDay(l *swagger.DiaryLesson) time.Time {
+	day, _ := time.Parse("2006-01-02T15:04:05", l.Day)
+	return day
+}
+
+func DayString(l *swagger.DiaryLesson) string {
+	return fmt.Sprintf("%sг. *Урок %d*(%s-%s)\n",
+		monday.Format(StrtoDay(l), "*Monday*, 2 January", monday.LocaleRuRU),
+		l.Number, l.StartTime, l.EndTime,
+	)
 }

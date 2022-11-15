@@ -3,7 +3,6 @@ package netcity
 import (
 	"fmt"
 	"github.com/goodsign/monday"
-	swagger "github.com/kmlebedev/netSchoolWebApi/go"
 )
 
 type CountryLoginData struct {
@@ -46,9 +45,8 @@ type SchoolLoginData struct {
 
 type User struct {
 	NetCityApi         *ClientApi
-	Marks              map[int]AssignmentMark
-	Assignments        map[int]DiaryAssignmentDetail
-	DiaryInit          swagger.StudentDiaryInit
+	Marks              map[int32]AssignmentMark
+	Assignments        map[int32]DiaryAssignmentDetail
 	School             *SchoolLoginData
 	NetCityUrl         string
 	UserName           string

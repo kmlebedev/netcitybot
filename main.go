@@ -168,7 +168,7 @@ func main() {
 		// sync assignments details with attachments to telegram
 		if botChatId != 0 && len(pullStudentIds) > 0 {
 			user := netcity.User{
-				Assignments:        map[int]netcity.DiaryAssignmentDetail{},
+				Assignments:        map[int32]netcity.DiaryAssignmentDetail{},
 				TrackAssignmentsCn: make(chan bool),
 				NetCityApi:         netcityApi,
 			}

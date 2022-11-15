@@ -57,7 +57,7 @@ func GetLoginWebApi(fromId int64) *netcity.ClientApi {
 
 func trackMarks(login *netcity.User) (string, error) {
 	var msg string
-	marks, err := login.NetCityApi.GetLessonAssignmentMarks()
+	marks, err := login.NetCityApi.GetLessonAssignmentMarks(login.NetCityApi.GetStudentsIds())
 	if err != nil {
 		return msg, fmt.Errorf("Ошибка получения оценок: %+v", err)
 	}

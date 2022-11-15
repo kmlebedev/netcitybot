@@ -1,12 +1,10 @@
 package bot
 
 import (
-	"context"
 	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/kmlebedev/netcitybot/netcity"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 	"time"
 )
 
@@ -50,24 +48,12 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 			}
 			return
 		}
-		var err error
-		var resp *http.Response
-		user.DiaryInit, resp, err = netCityApi.WebApi.StudentApi.StudentDiaryInit(context.Background())
-		if err != nil {
-			sendMsg.Text = "Что то пошло не так с инициализацией дневника"
-			log.Errorf("subs_assignments/StudentDiaryInit: %+v, resp: %+v", err, *resp)
-			return
-		}
-		var pullStudentIds []int
-		for _, student := range user.DiaryInit.Students {
-			pullStudentIds = append(pullStudentIds, int(student.StudentId))
-		}
 		user.TrackAssignmentsCn = make(chan bool)
-		if len(user.DiaryInit.Students) == 1 {
-			go netCityApi.LoopPullingOrder(300, bot, sendMsg.ChatID, &[]int{int(user.DiaryInit.Students[0].StudentId)}, user)
+		if len(user.NetCityApi.DiaryInit.Students) == 1 {
+			go netCityApi.LoopPullingOrder(300, bot, sendMsg.ChatID, &[]int{int(user.NetCityApi.DiaryInit.Students[0].StudentId)}, user)
 			sendMsg.Text = "Включена пересылка новых заданий"
-		} else if len(user.DiaryInit.Students) > 1 {
-			ReplySelectStudent(sendMsg, &user.DiaryInit.Students)
+		} else if len(user.NetCityApi.DiaryInit.Students) > 1 {
+			ReplySelectStudent(sendMsg, &user.NetCityApi.DiaryInit.Students)
 		} else {
 			sendMsg.Text = "Дневник не найден"
 		}
@@ -79,8 +65,9 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 			}
 			return
 		}
+
 		var err error
-		user.Marks, err = user.NetCityApi.GetLessonAssignmentMarks()
+		user.Marks, err = user.NetCityApi.GetLessonAssignmentMarks(user.NetCityApi.GetStudentsIds())
 		if err != nil {
 			sendMsg.Text = fmt.Sprintf("Что то пошло не так: %+v", err)
 			return
