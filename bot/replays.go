@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+func ReplyHelp(msg *tgbotapi.MessageConfig) {
+	msg.Text = "После входа в электронный дневник /start доступны команды:\n" +
+		"/track_marks - подписка на новый оценки\n" +
+		"/subs_assignments - пересылка домашних заданий в канал\n"
+}
+
 func ReplySelectStudent(msg *tgbotapi.MessageConfig, students *[]swagger.StudentDiaryInitStudents) {
 	msg.Text = "Выберите ученика"
 	rpKeyboard := tgbotapi.NewInlineKeyboardMarkup()

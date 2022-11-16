@@ -65,10 +65,16 @@ BOT_API_TOKEN=xxxxxxxxxxxxxxxxx" > .env_chat
 docker compose --env-file .env_chat -f docker-compose.yml up -d
 ```
 
-4. Доступные команды
-
-`/track_marks`      - Отслеживание отметок
-`/subs_assignments` - Пересылка заданий
+4. Доступные команды 
+Неободимо передать в [BotFather](https://t.me/BotFather) через команду `/setcommands`
+```
+login - Войти в электронный денивник
+get_contacts - Получить свои контакты
+track_marks - Отслеживание отметок
+subs_assignments - Пересылка заданий
+add_netcity_url - Добавить http-адрес электронного дневники
+logout - Выйти из электронного денивника
+```
 
 # Доккументация по публичному Web API NetSchool
 All URIs are relative to *https://app.swaggerhub.com/apis/LEBEDEVKM/NetSchool/5.10.63221*

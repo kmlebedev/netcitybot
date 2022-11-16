@@ -83,8 +83,8 @@ func GetsSchoolsLoginForm(webApi *swagger.APIClient, urlId uint64, schoolTpl net
 	}
 }
 
-func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
-	webApi := swagger.NewAPIClient(&swagger.Configuration{
+func NewWebAPIClient(url string, httpClient *http.Client) *swagger.APIClient {
+	return swagger.NewAPIClient(&swagger.Configuration{
 		BasePath: url + "/webapi",
 		DefaultHeader: map[string]string{
 			"Referer":          url + "/",
@@ -93,7 +93,16 @@ func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
 		},
 		HTTPClient: httpClient,
 	})
+}
 
+func GetLoginData(url string, httpClient *http.Client) *swagger.LoginData {
+	webApi := NewWebAPIClient(url, httpClient)
+	loginData, _, _ := webApi.LoginApi.Logindata(context.Background())
+	return &loginData
+}
+
+func GetPrepareLoginData(urlId uint64, url string, httpClient *http.Client) {
+	webApi := NewWebAPIClient(url, httpClient)
 	prepareLoginForm, _, err := webApi.LoginApi.Prepareloginform(ctx, nil)
 	if err != nil || len(prepareLoginForm.Provinces) == 0 || len(prepareLoginForm.Cities) == 0 || len(prepareLoginForm.Schools) == 0 {
 		log.Warningf("prepareLoginForm url %s: %+v", url, err)

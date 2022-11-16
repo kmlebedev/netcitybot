@@ -24,18 +24,23 @@ func Login(sendMsg *tgbotapi.MessageConfig, user *netcity.User) {
 
 func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, bot *tgbotapi.BotAPI) {
 	netCityApi := GetLoginWebApi(updateMsg.From.ID)
-	if netCityApi == nil && updateMsg.Command() != "start" {
-		sendMsg.Text = "Вы не вошли в дневник"
-		return
+	if netCityApi == nil {
+		if updateMsg.Command() == "subs_assignments" || updateMsg.Command() == "track_marks" || updateMsg.Command() == "get_contacts" {
+			sendMsg.Text = "Вы не вошли в дневник, выполните /login"
+			return
+		}
 	}
 	user := GetChatUser(updateMsg.From.ID)
 	switch updateMsg.Command() {
-	case "contacts":
+	case "get_contacts":
 		if mobilePhone, email, err := netCityApi.GetContacts(); err == nil {
 			sendMsg.Text = fmt.Sprintf("Мобильный телефон: %s и email: %s", mobilePhone, email)
 		} else {
 			log.Errorf("netCityApi.GetContacts: %v", err)
 		}
+
+	case "add_netcity_url":
+		sendMsg.Text = "Отправьте http-адрес электронного дневники"
 
 	case "start":
 		Login(sendMsg, user)
@@ -98,10 +103,9 @@ func ProcessCommand(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig
 			}
 		}(sendMsg.ChatID, bot, user)
 
-	case "hello":
-		sendMsg.Text = fmt.Sprintf("И тебе привет %s", user.UserName)
+	case "help":
+		ReplyHelp(sendMsg)
 	case "login":
-		sendMsg.Text = "login"
 		Login(sendMsg, user)
 	case "logout":
 		netCityApi.Logout()

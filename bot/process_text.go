@@ -47,7 +47,6 @@ func ProcessText(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageConfig, u
 	case "close":
 		sendMsg.Text = "done"
 		sendMsg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-
 	default:
 		sendMsg.Text = updateMsg.Text
 	}
