@@ -83,12 +83,12 @@ type StudentId struct {
 
 type ClientApi struct {
 	WebApi        *swagger.APIClient
+	WebApiCfg     *swagger.Configuration
 	BaseUrl       string
 	AuthParams    *netcity_pb.AuthParam
 	HTTPClient    *http.Client
 	DiaryInit     *swagger.StudentDiaryInit
 	At            *string
-	AccessToken   *string
 	Ver           int
 	Uid           int
 	CurrentYearId int
@@ -97,7 +97,6 @@ type ClientApi struct {
 	Years         map[string]int32
 	Classes       map[string]int32
 	Students      map[StudentId]string
-	DoAuth        func() error
 }
 
 type AssignmentMark struct {
@@ -106,6 +105,21 @@ type AssignmentMark struct {
 	Mark           int32
 	AssignmentName string
 	AssignmentId   int32
+}
+
+func (m *AssignmentMark) Message(oldMark *AssignmentMark) string {
+	var msg string
+	if oldMark != nil {
+		msg = fmt.Sprintf("Оценка исправлена c %d на *%d* ", m.Mark, oldMark.Mark)
+	} else {
+		msg = fmt.Sprintf("Оценка *%d* ", m.Mark)
+	}
+	msg += fmt.Sprintf("по предмету: %s", m.SubjectName)
+	if m.AssignmentName != "" && m.AssignmentName != "---Не указана---" {
+		msg += fmt.Sprintf(", по теме: %s", m.AssignmentName)
+	}
+	//return msg + fmt.Sprintf(", за: %s\n", m.Day.Format())
+	return msg + fmt.Sprintf(", за: %s\n", monday.Format(m.Day, "02 Jan", monday.LocaleRuRU))
 }
 
 func (u *User) GetAuthParam() *netcity_pb.AuthParam {
@@ -142,9 +156,8 @@ func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
 	req.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
 	if req.Body != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-	} else if c.At != nil {
-		req.Header.Set("at", *c.At)
 	}
+	req.Header.Set("at", c.AT())
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return err
@@ -246,13 +259,17 @@ func (c *ClientApi) Logout() {
 
 func (c *ClientApi) GetContacts() (mobilePhone string, email string, err error) {
 	resp, err := c.DoReq("/asp/MySettings/MySettings.asp", nil)
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusInternalServerError || resp.ContentLength == -1 {
+		_ = c.DoAuth()
+		resp, err = c.DoReq("/asp/MySettings/MySettings.asp", nil)
+	}
 	if err != nil {
-		return
+		return "", "", err
 	}
 	defer resp.Body.Close()
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return
+		return "", "", err
 	}
 	// <input type="text" class="form-control " data-inputmask="'mask': '+9-999-9999999'" name="MOBILEPHONE_MASK" size="25" maxlength="20" value="7912222222" OnChange="dataChanged()">
 	doc.Find(".form-control").Each(func(_ int, sel *goquery.Selection) {
@@ -265,6 +282,9 @@ func (c *ClientApi) GetContacts() (mobilePhone string, email string, err error) 
 			}
 		}
 	})
+	if mobilePhone == "" && email == "" {
+		log.Warningf("GetContacts resp: %+v", resp)
+	}
 	return
 }
 
@@ -380,44 +400,7 @@ func (c *ClientApi) GetCurrentyYearId() (currentYearId int, err error) {
 	return
 }
 
-func (c *ClientApi) DoAuthV4() error {
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/webapi/auth/getdata", c.BaseUrl), nil)
-	if err != nil {
-		return err
-	}
-	authData := AuthData{}
-	if err := c.sendRequest(req, &authData); err != nil {
-		return err
-	}
-	//  --data-raw 'LoginType=1&cid=2&sid=66&pid=-1&cn=3&sft=2&scid=23&UN=%D0%9B%D0%B5%D0%B1%D0%B5%D0%B4%D0%B5%D0%B2%D0%A4&PW=a8bb177e0d&lt=774865473&pw2=a8bb177e0dae8be25c8f3a3322e034da&ver=709065510' \
-	params := c.AuthParams.GetUrlValues(authData.Salt, authData.Lt, authData.Ver)
-	req, err = http.NewRequest("POST",
-		fmt.Sprintf("%s/webapi/login", c.BaseUrl),
-		strings.NewReader(params.Encode()),
-	)
-	if err != nil {
-		return err
-	}
-	loginData := LoginData{}
-	if err := c.sendRequest(req, &loginData); err != nil {
-		log.Warningf("failed auth req url: %s, params: %+v", req.URL, params)
-		return err
-	}
-	if loginData.At == "" {
-		return fmt.Errorf("empty login data %s", loginData)
-	}
-	c.At = &loginData.At
-	err = c.DoViewAnnouncements()
-	if err != nil {
-		return err
-	}
-	if c.CurrentYearId, err = c.GetCurrentyYearId(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *ClientApi) DoAuthV5() error {
+func (c *ClientApi) DoAuth() error {
 	authData, _, err := c.WebApi.LoginApi.Getauthdata(ctx)
 	if err != nil {
 		return fmt.Errorf("GetAuthData: %+v", err)
@@ -434,8 +417,9 @@ func (c *ClientApi) DoAuthV5() error {
 	if err != nil {
 		return fmt.Errorf("Login(): %+v, resp: %+v", err, resp)
 	}
+	c.Ver = authDataVer
 	c.At = &login.At
-	c.AccessToken = &login.AccessToken
+	c.WebApiCfg.AddDefaultHeader("Authorization", "Bearer "+login.AccessToken)
 	return nil
 }
 
@@ -464,26 +448,17 @@ func NewClientApi(url string, authParams *netcity_pb.AuthParam) (c *ClientApi, e
 		Classes:    map[string]int32{},
 		Students:   map[StudentId]string{},
 	}
-	loginData, _, err := c.WebApi.LoginApi.Logindata(ctx)
-	if err != nil {
-		log.Warningf("Logindata(): %+v", err)
+	if loginData, _, err := c.WebApi.LoginApi.Logindata(ctx); err != nil {
+		return nil, fmt.Errorf("Logindata(): %+v", err)
+	} else if !loginData.SchoolLogin {
+		return nil, fmt.Errorf("SchoolLogin disabled: %v+", loginData)
 	}
 
-	c.DoAuth = c.DoAuthV5
-	isWebApiV4 := false
-	if err != nil || !strings.Contains(loginData.Version, ".") || strings.Split(loginData.Version, ".")[0] != "5" {
-		c.DoAuth = c.DoAuthV4
-		isWebApiV4 = true
-	}
+	c.WebApiCfg = &webApiCfg
 	if err := c.DoAuth(); err != nil {
 		return nil, fmt.Errorf("DoAuth: %+v", err)
 	}
-	// req.Header.Set("at", c.At)
-	if c.AccessToken != nil {
-		webApiCfg.AddDefaultHeader("Authorization", "Bearer "+*c.AccessToken)
-	} else if c.At != nil {
-		webApiCfg.AddDefaultHeader("at", c.AT())
-	}
+
 	diaryInit, resp, err := c.WebApi.StudentApi.StudentDiaryInit(ctx)
 	if err != nil || len(diaryInit.Students) == 0 {
 		return nil, fmt.Errorf("StudentDiaryInit: %+v, resp: %+v", err, *resp)
@@ -491,9 +466,6 @@ func NewClientApi(url string, authParams *netcity_pb.AuthParam) (c *ClientApi, e
 	c.Uid = int(diaryInit.Students[0].StudentId)
 	c.DiaryInit = &diaryInit
 
-	if isWebApiV4 {
-		return c, nil
-	}
 	years, _, err := c.WebApi.MysettingsApi.Yearlist(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("Yearlist: %+v", err)
@@ -661,16 +633,21 @@ func (c *ClientApi) GetStudentsIds() (studentIds []int32) {
 	return studentIds
 }
 
-func (c *ClientApi) GetLessonAssignmentMarks(studentIds []int32) (assignmentMarks map[int32]AssignmentMark, err error) {
+func (c *ClientApi) GetLessonAssignmentMarks(studentIds []int32, weekStartDays int, weekEndDays int) (assignmentMarks map[int32]AssignmentMark, err error) {
 	currentTime := time.Now()
 	for _, studentId := range studentIds {
-		assignments, _, err := c.WebApi.StudentApi.StudentDiary(context.Background(), studentId, &swagger.StudentApiStudentDiaryOpts{
-			WeekStart:         optional.NewString(currentTime.AddDate(0, 0, -14).Format("2006-01-02")),
-			WeekEnd:           optional.NewString(currentTime.AddDate(0, 0, 1).Format("2006-01-02")),
+		diaryOpts := swagger.StudentApiStudentDiaryOpts{
+			WeekStart:         optional.NewString(currentTime.AddDate(0, 0, weekStartDays).Format("2006-01-02")),
+			WeekEnd:           optional.NewString(currentTime.AddDate(0, 0, weekEndDays).Format("2006-01-02")),
 			WithLaAssigns:     optional.NewBool(false),
 			WithPastMandatory: optional.NewBool(false),
 			YearId:            optional.NewInt32(int32(c.CurrentYearId)),
-		})
+		}
+		assignments, resp, err := c.WebApi.StudentApi.StudentDiary(context.Background(), studentId, &diaryOpts)
+		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusInternalServerError {
+			_ = c.DoAuth()
+			assignments, _, err = c.WebApi.StudentApi.StudentDiary(context.Background(), studentId, &diaryOpts)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("GetAssignments: %+v", err)
 		}
@@ -720,14 +697,18 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 				currentTime := time.Now()
 				weekStrat := currentTime.AddDate(0, 0, -8)
 				weekEnd := currentTime.AddDate(0, 0, 8)
-				newAssignments, _, err := c.WebApi.StudentApi.StudentDiary(context.Background(), int32(studentId),
-					&swagger.StudentApiStudentDiaryOpts{
-						WeekStart:         optional.NewString(weekStrat.Format("2006-01-02")),
-						WeekEnd:           optional.NewString(weekEnd.Format("2006-01-02")),
-						WithLaAssigns:     optional.NewBool(false),
-						WithPastMandatory: optional.NewBool(false),
-						YearId:            optional.NewInt32(int32(yearId)),
-					})
+				diaryOpts := swagger.StudentApiStudentDiaryOpts{
+					WeekStart:         optional.NewString(weekStrat.Format("2006-01-02")),
+					WeekEnd:           optional.NewString(weekEnd.Format("2006-01-02")),
+					WithLaAssigns:     optional.NewBool(false),
+					WithPastMandatory: optional.NewBool(false),
+					YearId:            optional.NewInt32(int32(yearId)),
+				}
+				newAssignments, resp, err := c.WebApi.StudentApi.StudentDiary(context.Background(), int32(studentId), &diaryOpts)
+				if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusInternalServerError {
+					_ = c.DoAuth()
+					newAssignments, _, err = c.WebApi.StudentApi.StudentDiary(context.Background(), int32(studentId), &diaryOpts)
+				}
 				if err != nil {
 					log.Error("GetAssignments: ", err)
 					errInLoop = err

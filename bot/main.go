@@ -57,7 +57,7 @@ func GetLoginWebApi(fromId int64) *netcity.ClientApi {
 
 func trackMarks(login *netcity.User) (string, error) {
 	var msg string
-	marks, err := login.NetCityApi.GetLessonAssignmentMarks(login.NetCityApi.GetStudentsIds())
+	marks, err := login.NetCityApi.GetLessonAssignmentMarks(login.NetCityApi.GetStudentsIds(), -14, 1)
 	if err != nil {
 		return msg, fmt.Errorf("Ошибка получения оценок: %+v", err)
 	}
@@ -74,11 +74,10 @@ func trackMarks(login *netcity.User) (string, error) {
 			continue
 		}
 		if found && markOld.Mark != markNew.Mark {
-			msg += fmt.Sprintf("Оценка исправлена c %d на *%d* ", markOld.Mark, markNew.Mark)
+			msg += markNew.Message(&markOld)
 		} else {
-			msg += fmt.Sprintf("Оценка *%d* ", markNew.Mark)
+			msg += markNew.Message(nil)
 		}
-		msg += fmt.Sprintf("по предмету: %s, по теме: %s, за: %s\n", markNew.SubjectName, markNew.AssignmentName, markNew.Day.Format("02 Jan"))
 	}
 	login.Marks = marks
 	return msg, nil
