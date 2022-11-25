@@ -8,6 +8,7 @@ import (
 	"github.com/kmlebedev/netcitybot/pb/netcity"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -49,9 +50,14 @@ func ProcessTextPrivate(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageCo
 		})
 	default:
 		if strings.HasPrefix(updateMsg.Text, "http:") || strings.HasPrefix(updateMsg.Text, "https:") {
-			url := strings.ReplaceAll(updateMsg.Text, " ", "")
+			u, err := url.Parse(strings.ReplaceAll(updateMsg.Text, " ", ""))
+			if err != nil || u.Host == "" {
+				sendMsg.Text = fmt.Sprintf("Адрес электронного дневника не валидный: %v", err)
+				return
+			}
+			baseUrl := fmt.Sprintf("%s://%s/", u.Scheme, u.Host)
 			httpClient := http.DefaultClient
-			loginData := GetLoginData(url, httpClient)
+			loginData := GetLoginData(baseUrl, httpClient)
 			if loginData == nil {
 				sendMsg.Text = "Не удалось получить данные для входа в дневник"
 				return
@@ -60,16 +66,16 @@ func ProcessTextPrivate(updateMsg *tgbotapi.Message, sendMsg *tgbotapi.MessageCo
 				sendMsg.Text = "Вход под логинам школы не разрешон"
 			}
 			for _, urlVal := range ChatNetCityDb.GetNetCityUrls() {
-				if urlVal == url {
+				if urlVal == baseUrl {
 					sendMsg.Text = "Адрес электронного дневника уже добавлен"
 					return
 				}
 			}
-			ChatNetCityDb.UpdateNetCityUrls(&([]string{url}))
+			ChatNetCityDb.UpdateNetCityUrls(&([]string{baseUrl}))
 			curSchoolsCount := len(Schools)
 			for id, urlVal := range ChatNetCityDb.GetNetCityUrls() {
-				if urlVal == url {
-					GetPrepareLoginData(id, url, httpClient)
+				if urlVal == baseUrl {
+					GetPrepareLoginData(id, baseUrl, httpClient)
 				}
 			}
 			sendMsg.Text = fmt.Sprintf("Вы добавили %d школ", len(Schools)-curSchoolsCount)
