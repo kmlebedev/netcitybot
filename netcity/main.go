@@ -235,7 +235,7 @@ func FilterAttrIsMobilePhone(_ int, s *goquery.Selection) bool {
 func (c *ClientApi) DoReq(path string, payload *map[string]string) (*http.Response, error) {
 	urlValues := url.Values{
 		"at":  {c.AT()},
-		"VER": {string(rune(c.Ver))},
+		"VER": {strconv.Itoa(c.Ver)},
 	}
 	if payload != nil {
 		for k, v := range *payload {
