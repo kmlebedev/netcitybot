@@ -159,15 +159,16 @@ func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
 	}
 	req.Header.Set("at", c.AT())
 	resp, err := c.HTTPClient.Do(req)
+	if err != nil || resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusInternalServerError {
+		if err = c.DoAuth(); err != nil {
+			resp, _ = c.HTTPClient.Do(req)
+		}
+	}
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusInternalServerError {
-		if err = c.DoAuth(); err != nil {
-			resp, _ = c.HTTPClient.Do(req)
-		}
-	} else if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		var errRes errorResponse
 		if err = json.NewDecoder(resp.Body).Decode(&errRes); err == nil {
 			log.Println(resp.Request)
@@ -176,7 +177,6 @@ func (c *ClientApi) sendRequest(req *http.Request, v interface{}) error {
 		}
 		return fmt.Errorf("unknown error, status code: %d", resp.StatusCode)
 	}
-
 	if err = json.NewDecoder(resp.Body).Decode(&v); err != nil {
 		bytes, _ := httputil.DumpResponse(resp, true)
 		log.Println(string(bytes))
@@ -259,10 +259,7 @@ func (c *ClientApi) Logout() {
 
 func (c *ClientApi) GetContacts() (mobilePhone string, email string, err error) {
 	resp, err := c.DoReq("/asp/MySettings/MySettings.asp", nil)
-	if err != nil {
-		return "", "", err
-	}
-	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusInternalServerError || resp.ContentLength == -1 {
+	if err != nil || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusInternalServerError || resp.ContentLength == -1 {
 		_ = c.DoAuth()
 		resp, err = c.DoReq("/asp/MySettings/MySettings.asp", nil)
 	}
@@ -647,10 +644,7 @@ func (c *ClientApi) GetLessonAssignmentMarks(studentIds []int32, weekStartDays i
 			YearId:            optional.NewInt32(int32(c.CurrentYearId)),
 		}
 		assignments, resp, err := c.WebApi.StudentApi.StudentDiary(context.Background(), studentId, &diaryOpts)
-		if err != nil {
-			return nil, fmt.Errorf("GetAssignments: %+v", err)
-		}
-		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusInternalServerError {
+		if err != nil || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusInternalServerError {
 			_ = c.DoAuth()
 			assignments, _, err = c.WebApi.StudentApi.StudentDiary(context.Background(), studentId, &diaryOpts)
 		}
@@ -711,12 +705,7 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 					YearId:            optional.NewInt32(int32(yearId)),
 				}
 				newAssignments, resp, err := c.WebApi.StudentApi.StudentDiary(context.Background(), int32(studentId), &diaryOpts)
-				if err != nil {
-					log.Error("GetAssignments: ", err)
-					errInLoop = err
-					break
-				}
-				if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusInternalServerError {
+				if err != nil || resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusInternalServerError {
 					_ = c.DoAuth()
 					newAssignments, _, err = c.WebApi.StudentApi.StudentDiary(context.Background(), int32(studentId), &diaryOpts)
 				}
