@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	configBucket = []byte("netCityConfig")
-	urlsBucket   = []byte("netCityUrls")
+	userLoginBucket  = []byte("netCityUserLogin")
+	userConfigBucket = []byte("netCityUserConfig")
+	urlsBucket       = []byte("netCityUrls")
 )
 
 // itob returns an 8-byte big endian representation of v.
@@ -72,7 +73,7 @@ func (s *StorageBolt) UpdateNetCityUrls(urls *[]string) {
 func (s *StorageBolt) GetUserLoginData(chatId int64) *netcity_pb.AuthParam {
 	var authParam netcity_pb.AuthParam
 	s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(configBucket)
+		b := tx.Bucket(userLoginBucket)
 		value := b.Get(itob(chatId))
 		return proto.Unmarshal(value, &authParam)
 	})
@@ -118,10 +119,34 @@ func (s *StorageBolt) PutUserLoginData(chatId int64, userLoginData *netcity_pb.A
 		if err != nil {
 			return err
 		}
-		b := tx.Bucket(configBucket)
+		b := tx.Bucket(userLoginBucket)
 		return b.Put(itob(chatId), value)
 	})
 	if err != nil {
-		log.Errorf("NewUserLoginData: %v", err)
+		log.Errorf("PutUserLoginData: %v", err)
+	}
+}
+
+func (s *StorageBolt) GetUserConfigData(chatId int64) *netcity_pb.UserConfig {
+	var userConfig netcity_pb.UserConfig
+	s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(userConfigBucket)
+		value := b.Get(itob(chatId))
+		return proto.Unmarshal(value, &userConfig)
+	})
+	return &userConfig
+}
+
+func (s *StorageBolt) PutUserConfigData(chatId int64, userConfigData *netcity_pb.UserConfig) {
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		value, err := proto.Marshal(userConfigData)
+		if err != nil {
+			return err
+		}
+		b := tx.Bucket(userConfigBucket)
+		return b.Put(itob(chatId), value)
+	})
+	if err != nil {
+		log.Errorf("PutUserConfigData: %v", err)
 	}
 }

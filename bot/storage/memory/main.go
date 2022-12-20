@@ -6,9 +6,10 @@ import (
 )
 
 type StorageMem struct {
-	NetCityUrls         map[uint64]string
-	ChatToUserLoginData map[int64]*netcity_pb.AuthParam
-	lock                sync.RWMutex
+	NetCityUrls          map[uint64]string
+	ChatToUserLoginData  map[int64]*netcity_pb.AuthParam
+	ChatToUserConfigData map[int64]*netcity_pb.UserConfig
+	lock                 sync.RWMutex
 }
 
 func NewStorageMem() *StorageMem {
@@ -87,4 +88,26 @@ func (s *StorageMem) UpdateUserLoginData(chatId int64, newUserLoginData *netcity
 	} else {
 		s.ChatToUserLoginData[chatId] = newUserLoginData
 	}
+}
+
+func (s *StorageMem) GetUserConfigData(chatId int64) *netcity_pb.UserConfig {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	if s.ChatToUserConfigData != nil {
+		if d, ok := s.ChatToUserConfigData[chatId]; ok {
+			return d
+		}
+	}
+
+	return nil
+}
+
+func (s *StorageMem) PutUserConfigData(chatId int64, userConfigData *netcity_pb.UserConfig) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if s.ChatToUserConfigData == nil {
+		s.ChatToUserConfigData = make(map[int64]*netcity_pb.UserConfig)
+	}
+	s.ChatToUserConfigData[chatId] = userConfigData
 }

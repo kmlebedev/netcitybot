@@ -16,10 +16,15 @@ import (
 var ctx = context.Background()
 
 const userLoginDataKey = "userLoginData"
+const userConfigDataKey = "userConfigData"
 const netCityUrlsKey = "netCityUrls"
 
 func getUserLoginDataKey(chatId int64) string {
 	return fmt.Sprintf("%s:%d", userLoginDataKey, chatId)
+}
+
+func getUserConfigDataKey(chatId int64) string {
+	return fmt.Sprintf("%s:%d", userConfigDataKey, chatId)
 }
 
 func mtoFields(m protoreflect.Message) (fields []string) {
@@ -107,9 +112,9 @@ func (s *StorageRdb) PutUserLoginData(chatId int64, userLoginData *netcity_pb.Au
 		err := s.rdb.Set(ctx, getUserLoginDataKey(chatId), base64.StdEncoding.EncodeToString(value), 0).Err()
 		if err != nil {
 			log.Errorf("rdb.Set userLoginData %+v", err)
-		} else {
-			log.Errorf("proto.Marshal userLoginData %+v", err)
 		}
+	} else {
+		log.Errorf("proto.Marshal userLoginData %+v", err)
 	}
 }
 
@@ -135,4 +140,40 @@ func (s *StorageRdb) GetUserLoginData(chatId int64) *netcity_pb.AuthParam {
 	}
 
 	return &userLoginData
+}
+
+func (s *StorageRdb) GetUserConfigData(chatId int64) *netcity_pb.UserConfig {
+	userConfigData := netcity_pb.UserConfig{}
+	valueStr, err := s.rdb.Get(ctx, getUserConfigDataKey(chatId)).Result()
+	if err != nil {
+		if !errors.Is(err, redis.Nil) {
+			log.Errorf("GetUserConfig: s.rdb.Get userLoginData %+v", err)
+		}
+		return nil
+	}
+
+	value, err := base64.StdEncoding.DecodeString(valueStr)
+	if err != nil {
+		log.Errorf("GetUserConfig: DecodeString userConfigData %+v", err)
+		return nil
+	}
+
+	if err := proto.Unmarshal(value, &userConfigData); err != nil {
+		log.Errorf("GetUserConfig: proto.Unmarshal userConfigData %+v", err)
+		return nil
+	}
+
+	return &userConfigData
+}
+
+func (s *StorageRdb) PutUserConfigData(chatId int64, userConfigData *netcity_pb.UserConfig) {
+	if value, err := proto.Marshal(userConfigData); err == nil {
+		err := s.rdb.Set(ctx, getUserConfigDataKey(chatId), base64.StdEncoding.EncodeToString(value), 0).Err()
+		if err != nil {
+			log.Errorf("rdb.Set userConfigData %+v", err)
+		}
+	} else {
+		log.Errorf("proto.Marshal userConfigData %+v", err)
+	}
+
 }

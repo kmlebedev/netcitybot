@@ -15,3 +15,8 @@ message AuthParam {
   int32  Sft = 8;
   uint32 UrlId = 9;
 }
+
+message UserConfig {
+  bool is_subscribe_assignments = 1;
+  bool is_subscribe_marks = 2;
+}

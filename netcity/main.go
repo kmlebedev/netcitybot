@@ -681,7 +681,6 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 		return
 	}
 	isFirstRun := true
-	var errInLoop error
 	backOff := 0
 	for {
 		select {
@@ -693,6 +692,7 @@ func (c *ClientApi) LoopPullingOrder(intervalSeconds int, bot *tgbotapi.BotAPI, 
 			}
 			return
 		default:
+			var errInLoop error
 			for _, studentId := range *studentIds {
 				currentTime := time.Now()
 				weekStrat := currentTime.AddDate(0, 0, -8)
